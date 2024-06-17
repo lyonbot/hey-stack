@@ -1,0 +1,11 @@
+{
+  "name": "hey-stack",
+  "scripts": {},
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vue": "^3.4.29"
+  },
+  "dependencies": {
+    "@vue/reactivity": "^3.4.29"
+  }
+}

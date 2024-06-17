@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "name": "root",
+  "scripts": {
+    "dev": "run-p -l dev:*",
+    "dev:backend": "cd backend && USE_ENV_FILE=../.development.env npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "pnpm run -r build",
+    "start": "cd backend && USE_ENV_FILE=../.production.env npm run start"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.5.0",
+    "@stylistic/eslint-plugin": "^2.2.0",
+    "@types/eslint__js": "^8.42.3",
+    "dts-bundle-generator": "^9.5.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-simple-import-sort": "^12.1.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.13.0"
+  }
+}

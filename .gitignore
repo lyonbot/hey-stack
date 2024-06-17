@@ -1,0 +1,13 @@
+.DS_Store
+.vscode
+node_modules
+dist
+.idea
+.history
+.cache
+.temp
+*.swp
+*.log
+*.tar.gz
+*.tgz
+tsconfig.tsbuildinfo

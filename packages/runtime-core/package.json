@@ -1,0 +1,21 @@
+{
+  "name": "hey-stack-core",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "watch": "tsc -b -w"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/common/exports.js",
+    "./package.json": "./package.json",
+    "./*": "./dist/*"
+  },
+  "dependencies": {
+    "@vue/reactivity": "^3.4.30"
+  }
+}

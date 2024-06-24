@@ -1,15 +1,14 @@
-import { defineComponent, h, inject, onUnmounted, provide, SetupContext } from 'vue'
+import { getScopeForRelates, ScopeForPropsBase } from 'hey-stack-core/common/for.js'
+import { createScopeContext, disposeScopeContext, ScopeCtx, ScopeSetupOptionsBase } from 'hey-stack-core/common/scope.js'
+import { MaybePromise } from 'hey-stack-core/types/utilities.js'
+import { defineComponent, effect, h, inject, onUnmounted, provide, SetupContext, VNode } from 'vue'
 
-import { MaybePromise } from '../../types/utilities'
-import { getScopeForRelates, ScopeForPropsBase } from '../common/for'
-import { createScopeContext, defineScopeVariable, disposeScopeContext, ScopeCtx, ScopeSetupOptionsBase } from '../common/scope'
-
-export * from '../common/exports'
+export * from 'hey-stack-core'
 export type ScopeForProps = ScopeForPropsBase<FrameworkComponent>
 export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
 export const SCOPE_CONTEXT_KEY = Symbol('scopeCtx')
-export type FrameworkComponent = import('vue').Component
+export type FrameworkComponent = any // import('vue').Component
 export type ScopeComponentSetupFn = (scopeCtx: any) => MaybePromise<() => JSX.Element>
 
 function useNewScopeContext(ctx: SetupContext): ScopeCtx {
@@ -50,12 +49,12 @@ export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkC
       const scopeCtx = useNewScopeContext(ctx)
       const setupReturn = setupFn(scopeCtx) // this can be a promise!
       if (setupReturn instanceof Promise) {
-        return setupReturn.then(render => ({ _sRender: render }))
+        return setupReturn.then(render => ({ myRender: render }))
       }
-      return { _sRender: setupReturn }
+      return { myRender: setupReturn }
     },
     render() {
-      return this._sRender()
+      return this.myRender()
     },
   })
 }
@@ -65,46 +64,45 @@ export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkC
  */
 export const ScopeFor = defineComponent({
   name: 'ScopeFor',
+  props: {
+    items: { type: Function, required: true },
+    as: { type: String, default: '' },
+    keyAs: { type: String, default: '' },
+    itemsAs: { type: String, default: '' },
+    childComponent: { required: true },
+  } as any,
   setup(props: ScopeForProps) {
-    const relates = getScopeForRelates(props)
-    return () => relates[0].value.map(renderItem => h(ScopeForItem, {
-      renderItem,
-      as: props.as,
-      keyAs: props.keyAs,
-      itemsAs: props.itemsAs,
-      childComponent: props.childComponent,
+    const relates = getScopeForRelates(props, (p): VNode => {
+      return h(ScopeForItem, {
+        key: p.renderKey,
+        index: p.index,
+        items: p.items,
+        setupScope: p.setupScope,
+        get childComponent() { return props.childComponent },
+      })
+    })
 
-      key: renderItem.renderKey,
-    }))
+    return () => relates.renderedItems.value
   },
 })
 
 // internal implementation, not exported
 const ScopeForItem = defineComponent({
   name: 'ScopeForItem',
+  props: {
+    index: { required: true },
+    items: { required: true },
+    setupScope: { type: Function, required: true },
+    childComponent: { required: true },
+  } as any,
   setup(props: {
-    renderItem: any
-    as?: string | symbol
-    keyAs?: string | symbol
-    itemsAs?: string | symbol
+    index: any
+    items: any
+    setupScope: (scopeCtx: ScopeCtx, data: { items: any, index: any }) => void
     childComponent: FrameworkComponent
   }, ctx) {
     const scopeCtx = useNewScopeContext(ctx)
-
-    if (props.as) defineScopeVariable(scopeCtx, props.as, {
-      get: () => props.renderItem.item,
-      set(value) {
-        props.renderItem.items[props.renderItem.key] = value
-      },
-    })
-
-    if (props.keyAs) defineScopeVariable(scopeCtx, props.keyAs, {
-      get: () => props.renderItem.key,
-    })
-
-    if (props.itemsAs) defineScopeVariable(scopeCtx, props.itemsAs, {
-      get: () => props.renderItem.items,
-    })
+    effect(() => props.setupScope(scopeCtx, props))
 
     return () => h(props.childComponent)
   },

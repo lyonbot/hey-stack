@@ -1,0 +1,23 @@
+{
+  "name": "hey-stack-vue",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "watch": "tsc -b -w",
+    "start": "cd example && vite"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json",
+    "./*": "./dist/*"
+  },
+  "dependencies": {
+    "hey-stack-core": "workspace:*",
+    "vue": "^3.4.30"
+  }
+}

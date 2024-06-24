@@ -33,7 +33,7 @@ Given such fragment:
 
 The "xml fragment" example can be easily rewritten as a pseudo JSX code:
 
-**\_fun fact**: pseudo code can not actually works in React, but might works in SolidJS thanks to "dom-expression"\_
+**Unimportant fun fact**: pseudo code can not actually works in React, but might works in SolidJS thanks to "dom-expression"
 
 ```jsx
 // Note: each fragment can seamless treat as a new "scope"

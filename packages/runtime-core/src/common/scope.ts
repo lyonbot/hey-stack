@@ -1,3 +1,5 @@
+/// <reference path="../types/global-shims.d.ts" />
+
 import { Ref, ref as createRef } from '@vue/reactivity'
 
 export interface ScopeCtx {
@@ -121,8 +123,8 @@ export function defineScopeVariable(scope: ScopeCtx, name: string | symbol, opti
       }
 
   scope[$descriptors][name] = [descriptor, debugInfo]
-  const exposedAs = !options.private && (options.exposedAs ?? name)
-  if (exposedAs || exposedAs === '') scope[$inheritableDescriptors][exposedAs] = [descriptor, debugInfo]
+  const exposedAs = options.private ? null : (options.exposedAs ?? name)
+  if (exposedAs != null) scope[$inheritableDescriptors][exposedAs] = [descriptor, debugInfo]
 
   Object.defineProperty(scope, name, descriptor)
 }

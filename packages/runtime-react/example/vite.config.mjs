@@ -1,19 +1,18 @@
 /* global __dirname */
 
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  plugins: [tsconfigPaths(), react()],
   resolve: {
     alias: {
       'hey-stack-framework': `${__dirname}/..`,
     },
   },
   esbuild: {
-    jsx: 'automatic',
-    jsxFragment: 'Fragment',
-    jsxImportSource: 'vue',
+    jsx: 'transform',
   },
   define: {
     __DEV__: 'true',

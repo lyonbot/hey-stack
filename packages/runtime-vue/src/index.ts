@@ -9,7 +9,7 @@ export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
 export const SCOPE_CONTEXT_KEY = Symbol('scopeCtx')
 export type FrameworkComponent = any // import('vue').Component
-export type ScopeComponentSetupFn = (scopeCtx: any) => MaybePromise<() => JSX.Element>
+export type ScopeComponentSetupFn = (scopeCtx: any) => MaybePromise<() => VNode>
 
 function useNewScopeContext(ctx: SetupContext): ScopeCtx {
   const parentScopeCtx = inject<ScopeCtx | null>(SCOPE_CONTEXT_KEY, null)

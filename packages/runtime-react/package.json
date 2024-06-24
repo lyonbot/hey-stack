@@ -1,5 +1,5 @@
 {
-  "name": "hey-stack-vue",
+  "name": "hey-stack-react",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -18,7 +18,13 @@
     "./*": "./dist/*"
   },
   "dependencies": {
+    "@vue/reactivity": "^3.4.30",
     "hey-stack-core": "workspace:*",
-    "vue": "^3.4.30"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@vitejs/plugin-react": "^4.3.1"
   }
 }

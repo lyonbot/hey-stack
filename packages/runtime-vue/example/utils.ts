@@ -1,4 +1,6 @@
-export const mixinHighlightChanges = () => {
+import { ComponentOptionsMixin } from 'vue'
+
+export const mixinHighlightChanges = (): ComponentOptionsMixin => {
   return {
     updated() {
       highlightElement(this.$el, '#ff990066')

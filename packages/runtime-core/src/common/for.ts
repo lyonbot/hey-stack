@@ -63,7 +63,6 @@ export function getScopeForRelates<RFI extends (props: {
     if (method === RenderKeyStrategy.reference) {
       const nextRenderKey = makeCounter()
       const renderKeyWeakmap = new WeakMap<any, number>()
-      console.log('reset', renderKeyWeakmap)
       return (index) => {
         const item = toRaw($items.value[index])
         if (typeof item !== 'object' || !item) return index

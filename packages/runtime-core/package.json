@@ -8,11 +8,13 @@
     "watch": "tsc -b -w"
   },
   "files": [
-    "dist"
+    "dist",
+    "examples"
   ],
   "exports": {
     ".": "./dist/common/exports.js",
     "./package.json": "./package.json",
+    "./examples/*": "./examples/*",
     "./*": "./dist/*"
   },
   "dependencies": {

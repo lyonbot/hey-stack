@@ -1,8 +1,7 @@
 import { effect, shallowRef } from '@vue/reactivity'
-import { getScopeForRelates, ScopeForPropsBase } from 'hey-stack-core/common/for.js'
-import { ScopeCtx, ScopeSetupOptionsBase } from 'hey-stack-core/common/scope.js'
-import { MaybePromise } from 'hey-stack-core/types/utilities.js'
-import { compactWatcher } from 'hey-stack-core/utils.js'
+import { getScopeForRelates, ScopeForPropsBase } from 'hey-stack-core/for.js'
+import { ScopeCtx, ScopeSetupOptionsBase } from 'hey-stack-core/scope.js'
+import { makeReactiveComputed, MaybePromise } from 'hey-stack-core/utils.js'
 import { ComponentType, createContext, createElement, memo } from 'react'
 
 import { $effectScope, useEffectScope, useForceUpdate, useNewScopeContext, useSetup } from './hooks.js'
@@ -53,13 +52,13 @@ export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkC
         renderFn.value = setupReturn
       }
 
-      const renderResult = compactWatcher(() => renderFn.value!(), forceUpdate)
-      return renderResult
+      const vnode = makeReactiveComputed(() => renderFn.value!(), forceUpdate)
+      return vnode.get
     })
 
     return (
       <ScopeCtxContext.Provider value={scopeCtx}>
-        {renderResult.consume().value}
+        {renderResult()}
       </ScopeCtxContext.Provider>
     )
   })
@@ -83,7 +82,7 @@ export const ScopeFor = memo(function ScopeFor(props: ScopeForProps) {
       })
     })
 
-    const renderedItems = compactWatcher(
+    const renderedItems = makeReactiveComputed(
       () => relates.renderedItems.value,
       forceUpdate,
     )
@@ -91,7 +90,7 @@ export const ScopeFor = memo(function ScopeFor(props: ScopeForProps) {
     return { renderedItems }
   })
 
-  const node = effectScope.renderedItems.consume(true).value
+  const node = effectScope.renderedItems.get()
   return node
 })
 ScopeFor.displayName = 'ScopeFor'

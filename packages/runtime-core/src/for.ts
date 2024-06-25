@@ -1,7 +1,7 @@
 import { computed, toRaw } from '@vue/reactivity'
 
-import { makeCounter } from '../utils.js'
 import { defineScopeVariable, ScopeCtx } from './scope.js'
+import { makeCounter } from './utils.js'
 
 /**
  * The properties for the ScopeFor component.

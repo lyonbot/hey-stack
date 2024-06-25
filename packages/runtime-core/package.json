@@ -2,6 +2,7 @@
   "name": "hey-stack-core",
   "version": "0.1.0",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
@@ -12,7 +13,7 @@
     "examples"
   ],
   "exports": {
-    ".": "./dist/common/exports.js",
+    ".": "./dist/index.js",
     "./package.json": "./package.json",
     "./examples/*": "./examples/*",
     "./*": "./dist/*"

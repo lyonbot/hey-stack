@@ -1,6 +1,6 @@
-import { getScopeForRelates, ScopeForPropsBase } from 'hey-stack-core/common/for.js'
-import { createScopeContext, disposeScopeContext, ScopeCtx, ScopeSetupOptionsBase } from 'hey-stack-core/common/scope.js'
-import { MaybePromise } from 'hey-stack-core/types/utilities.js'
+import { getScopeForRelates, ScopeForPropsBase } from 'hey-stack-core/for.js'
+import { createScopeContext, disposeScopeContext, ScopeCtx, ScopeSetupOptionsBase } from 'hey-stack-core/scope.js'
+import { MaybePromise } from 'hey-stack-core/utils.js'
 import { defineComponent, effect, h, inject, onUnmounted, provide, SetupContext, VNode } from 'vue'
 
 export * from 'hey-stack-core'

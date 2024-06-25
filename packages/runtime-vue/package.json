@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "clean": "tsc -b --clean",
+    "build:example": "cd example && vite build",
+    "clean": "tsc -b --clean && rimraf dist example/dist",
     "watch": "tsc -b -w",
     "start": "run-p start:* watch",
     "start:example": "cd example && vite"

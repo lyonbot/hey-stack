@@ -1,11 +1,11 @@
 import { EffectScope, effectScope as createEffectScope, effectScope, shallowReactive } from '@vue/reactivity'
-import { createScopeContext, disposeScopeContext, ScopeCtx } from 'hey-stack-core'
+import { createScopeContext, disposeScopeContext, ScopeCtx } from 'hey-stack-core/scope.js'
 import { useContext, useEffect, useReducer, useRef } from 'react'
 
 import { ScopeCtxContext } from './index.js'
 
 export const $effectScope = Symbol('effectScope')
-declare module 'hey-stack-core/common/scope.js' {
+declare module 'hey-stack-core/scope.js' {
   export interface ScopeCtx {
     [$effectScope]: EffectScope
   }

@@ -1,6 +1,6 @@
-/// <reference path="../types/global-shims.d.ts" />
-
 import { Ref, ref as createRef } from '@vue/reactivity'
+
+import { isDevelopmentMode } from './constants.js'
 
 export interface ScopeCtx {
   [k: string | symbol]: any
@@ -35,8 +35,8 @@ export interface ScopeVariableOptions {
   exposedAs?: string | symbol
 }
 
-export const $descriptors = Symbol() // all of current scope, including private. store with current name
-export const $inheritableDescriptors = Symbol()
+export const $descriptors = Symbol('descriptors') // all of current scope, including private. store with current name
+export const $inheritableDescriptors = Symbol('inheritableDescriptors')
 
 export interface ScopeVariableDebugInfo {
   name: string | symbol
@@ -69,7 +69,7 @@ export function createScopeContext(parent: ScopeCtx | null): ScopeCtx {
     Object.assign(scope[$descriptors], parentDescriptors)
     Object.entries(parentDescriptors).forEach(([name, [descriptor, debug]]) => {
       Object.defineProperty(scope, name, descriptor)
-      if (__DEV__ && debug) debug.usedBy.add(scope)
+      if (isDevelopmentMode && debug) debug.usedBy.add(scope)
     })
   }
 
@@ -79,7 +79,7 @@ export function createScopeContext(parent: ScopeCtx | null): ScopeCtx {
 export function disposeScopeContext(scopeCtx: ScopeCtx): void {
   const descriptors = scopeCtx[$descriptors]
   Object.entries(descriptors).forEach(([/* name */, [/* descriptor */, debug]]) => {
-    if (__DEV__ && debug) debug.usedBy.delete(scopeCtx)
+    if (isDevelopmentMode && debug) debug.usedBy.delete(scopeCtx)
   })
 
   // TODO: check children-leaking: parent disposed but child still in use
@@ -111,7 +111,7 @@ export function defineScopeVariable(scope: ScopeCtx, name: string | symbol, opti
     }
   }
 
-  const debugInfo: null | ScopeVariableDebugInfo = !__DEV__
+  const debugInfo: null | ScopeVariableDebugInfo = !isDevelopmentMode
     ? null
     : {
         name,

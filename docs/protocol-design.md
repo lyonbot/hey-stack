@@ -108,11 +108,12 @@ const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
 
   // TODO: maybe `items` is async, and can block this component's first rendering
 
+  const __hoisted_items = () => __scopeCtx.items; // improve performance. not required. just for React
   return () => (
     <>
       <div> we got {__scopeCtx.items.length} items </div>
       <ScopeFor
-        items={() => __scopeCtx.items}
+        items={__hoisted_items}
         as="item"
         keyAs="index"
         itemsAs="array"

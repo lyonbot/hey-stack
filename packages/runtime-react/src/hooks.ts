@@ -17,6 +17,19 @@ function disposeScopeCtxReact(scope: ScopeCtx) {
   scope[$effectScope].stop()
 }
 
+export function useUnmounted(callback: () => void) {
+  const callbackRef = useRef(callback)
+  callbackRef.current = callback
+
+  const timer = useRef<any>()
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current)
+    return () => {
+      timer.current = setTimeout(() => (callbackRef.current()))
+    }
+  }, [])
+}
+
 export function useNewScopeContext(): ScopeCtx {
   const parentScopeCtx = useContext(ScopeCtxContext)
   const lastScopeCtx = useRef<ScopeCtx>()
@@ -75,10 +88,10 @@ export function useEffectScope<T extends object, U>(props: T, onCreated: (reacti
   const reactiveProps = useRef<T>()
   const setupReturns = useRef<U>()
 
-  useEffect(() => () => {
+  useUnmounted(() => {
     effectScope.current?.stop()
     effectScope.current = undefined
-  }, [])
+  })
 
   if (!effectScope.current) {
     const $scope = createEffectScope()

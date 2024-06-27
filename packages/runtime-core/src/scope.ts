@@ -1,6 +1,7 @@
-import { Ref, ref as createRef } from '@vue/reactivity'
+import { computed, Ref, ref as createRef, shallowRef } from '@vue/reactivity'
 
 import { isDevelopmentMode } from './constants.js'
+import { NOOP } from './utils.js'
 
 export interface ScopeCtx {
   [k: string | symbol]: any
@@ -19,6 +20,9 @@ export interface ScopeCtx {
 }
 
 export interface ScopeVariableOptions {
+  /** If true, use `shallowRef` to store value. */
+  shallow?: boolean
+
   /** Initializer function (can be async). Can't be used together with `get` or `set`. */
   value?: any
 
@@ -92,30 +96,38 @@ export function disposeScopeContext(scopeCtx: ScopeCtx): void {
  * @param options - The options for the variable.
  */
 export function defineScopeVariable(scope: ScopeCtx, name: string | symbol, options: ScopeVariableOptions): void {
+  // 1. create ref
+
+  let ref: Ref
+  if (options.set) {
+    ref = computed({
+      get: options.get || NOOP,
+      set: options.set,
+    })
+  }
+  else if (options.get) {
+    ref = computed(options.get)
+  }
+  else {
+    // value ref
+    if (options.shallow) ref = shallowRef(options.value)
+    else ref = createRef(options.value)
+  }
+
+  // 2. create descriptor
+
   const descriptor: PropertyDescriptor = {
     enumerable: true,
     configurable: true,
-  }
-
-  let ref: Ref | undefined
-  if (options.get || options.set) {
-    descriptor.get = options.get
-    descriptor.set = options.set
-  }
-  else {
-    // TODO: shallowRef?
-    ref = createRef(options.value)
-    descriptor.get = () => ref!.value
-    descriptor.set = (newValue) => {
-      ref!.value = newValue
-    }
+    get: () => ref.value,
+    set: newValue => void (ref.value = newValue),
   }
 
   const debugInfo: null | ScopeVariableDebugInfo = !isDevelopmentMode
     ? null
     : {
         name,
-        scope: scope,
+        scope,
         options,
         ref,
         usedBy: new Set([scope]),

@@ -12,9 +12,9 @@ export default defineConfig({
     },
   },
   esbuild: {
-    jsx: 'automatic',
-    jsxFragment: 'Fragment',
-    jsxImportSource: 'vue',
+    jsx: 'transform',
+    jsxInject: 'import { h as vueCreateElement } from "vue"',
+    jsxFactory: 'vueCreateElement',
   },
   define: {
     __DEV__: 'true',

@@ -12,7 +12,7 @@ export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
 export const ScopeCtxContext = createContext<ScopeCtx | null>(null)
 export type FrameworkComponent = ComponentType
-export type ScopeComponentSetupFn = (scopeCtx: any) => MaybePromise<() => JSX.Element>
+export type ScopeComponentSetupFn = (scopeCtx: ScopeCtx) => MaybePromise<() => JSX.Element>
 
 /**
  * Define a component, returns a framework-related component.

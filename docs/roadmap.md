@@ -64,7 +64,11 @@ hey-stack' development can be based on other framework:
 
     - `private`: if true, variable cannot be inherited
 
-    - `exposedAs`: string or symbol, change the name for sub-scopes. can't be used in junction with `private`
+    - `exposeAs`: string or symbol, change the name for sub-scopes. can't be used in junction with `private`
+
+- `defineScopeVariable(scopeCtx, optionsMap)`
+
+  define multiple variables at once. the `optionsMap` is something like `{ name1: options1, name2: options2, ... }`
 
 ### Components
 

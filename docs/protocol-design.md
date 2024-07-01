@@ -108,7 +108,7 @@ const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
 
   // TODO: maybe `items` is async, and can block this component's first rendering
 
-  const __hoisted_items = () => __scopeCtx.items; // improve performance. not required. just for React
+  const __hoisted_items = () => __scopeCtx.items; // improve performance. not required. just for React from unnecessary re-renders, not required.
   return () => (
     <>
       <div> we got {__scopeCtx.items.length} items </div>

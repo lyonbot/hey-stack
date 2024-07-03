@@ -13,13 +13,13 @@ export interface ScopeForPropsBase<ComponentType> {
   items: () => any
 
   /** Optional string, exposed variable name. */
-  as?: string
+  as?: string | symbol
 
   /** Optional string, exposed variable name. */
-  keyAs?: string
+  keyAs?: string | symbol
 
   /** Optional string, exposed variable name. */
-  itemsAs?: string
+  itemsAs?: string | symbol
 
   /** A component made by `defineScopeComponent()`. */
   childComponent: ComponentType
@@ -29,7 +29,7 @@ export interface ScopeForPropsBase<ComponentType> {
    *
    * @default `ScopeForKeying.reference` - which is good for mutable objects, but NOT recommended for immutable situations.
    */
-  renderKey?: string | symbol | ((item: any) => any)
+  renderKey?: string | symbol | ((item: any, index: any, items: any) => any)
 }
 
 export const RenderKeyStrategy = {
@@ -76,7 +76,12 @@ export function getScopeForRelates<RFI extends (props: {
       }
     }
 
-    if (typeof method === 'function') return method
+    if (typeof method === 'function') return (index) => {
+      const items = $items.value
+      const item = items[index]
+      return method(item, index, items)
+    }
+
     return (index) => {
       const item = $items.value[index]
       if (typeof item === 'object') return item[method]

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
-    "watch": "tsc -b -w"
+    "watch": "tsc -b -w",
+    "test": "vitest"
   },
   "files": [
     "dist",
@@ -20,5 +21,8 @@
   },
   "dependencies": {
     "@vue/reactivity": "^3.4.30"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3"
   }
 }

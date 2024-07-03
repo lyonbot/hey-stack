@@ -1,10 +1,128 @@
+/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
 import { computed, Ref, ref as createRef, shallowRef } from '@vue/reactivity'
 
 import { isDevelopmentMode } from './constants.js'
 import { NOOP } from './utils.js'
 
+export const $scopeCtxVariableManager = Symbol('scopeCtxVariableManager') // all of current scope, including private. store with current name
+
+type ExtendedPropertyDescriptor = PropertyDescriptor & { $debug?: ScopeVariableDebugInfo | null }
+
+class ScopeCtxVariableManager {
+  fallbackRevision = shallowRef(0)
+  keyRevisions = Object.create(null) as Record<string | symbol, Ref<number>>
+  parent: ScopeCtxVariableManager | null
+  dest: any
+
+  descriptors: Record<string | symbol, ExtendedPropertyDescriptor>
+
+  /**
+   * access the field revision counter of a key. works with Vue reactivity.
+   *
+   * @remarks this function is already bound, you can call it without `this`.
+   * @returns `true` if key exists in this or any ancestor zone
+   */
+  readonly depend: ($key: string | symbol) => boolean
+
+  /**
+   * create or update variables in this zone.
+   */
+  readonly add: (descriptors: Record<string | symbol, ExtendedPropertyDescriptor>) => void
+
+  /**
+   * @param dest
+   * @param parent parent variable manager. only for
+   */
+  constructor(dest: any, parent: ScopeCtxVariableManager | null = null) {
+    this.dest = dest
+    this.parent = parent
+
+    if (parent) {
+      this.descriptors = Object.create(parent.descriptors)
+
+      if (isDevelopmentMode) {
+        for (const key in parent.descriptors) {
+          const debug = parent.descriptors[key].$debug
+          if (debug) debug.usedBy.add(dest)
+        }
+      }
+    }
+    else {
+      this.descriptors = Object.create(null)
+    }
+
+    const { keyRevisions, fallbackRevision } = this
+    const parentDepend = parent?.depend
+    this.depend = ($key) => {
+      // add dependency by accessing the ref.value
+      const k = keyRevisions[$key];
+      (k || fallbackRevision).value
+      if (!k && parentDepend) return parentDepend($key)
+      return !!k
+    }
+
+    this.add = (descriptors) => {
+      // if is shadowing, remove from "usedBy" of parent
+      if (isDevelopmentMode) {
+        for (const name in descriptors) {
+          const debug = this.descriptors[name]?.$debug
+          if (debug) debug.usedBy.delete(dest)
+        }
+      }
+
+      Object.defineProperties(dest, descriptors)
+      Object.assign(this.descriptors, descriptors)
+
+      const mod = this.modKeys()
+      Object.keys(descriptors).forEach(mod.update)
+      mod.commit()
+    }
+  }
+
+  modKeys() {
+    let isKeyListChanged = false
+    const queue = new Set<Ref<number>>()
+
+    const selfKeyRev = this.keyRevisions
+    const allKeyRev = this.fallbackRevision
+
+    return {
+      update(key: string | symbol) {
+        const rev = selfKeyRev[key]
+        if (rev) queue.add(rev)
+        else {
+          selfKeyRev[key] = shallowRef(0)
+          isKeyListChanged = true
+        }
+        return rev
+      },
+
+      delete(key: string | symbol) {
+        const rev = selfKeyRev[key]
+        if (rev) {
+          queue.add(rev)
+          delete selfKeyRev[key]
+          isKeyListChanged = true
+        }
+
+        return rev
+      },
+
+      commit() {
+        queue.forEach(rev => rev.value++)
+        if (isKeyListChanged) allKeyRev.value++
+
+        queue.clear()
+        isKeyListChanged = false
+      },
+    }
+  }
+}
+
+export const $variableZoneForDescendants = Symbol('variableZoneForDescendants')
+
 export interface ScopeCtx {
-  [k: string | symbol]: any
+  [key: string | symbol]: any
 
   /** The current scope. */
   $scope: any
@@ -12,18 +130,11 @@ export interface ScopeCtx {
   /** The parent scope. */
   $parentScope: ScopeCtx | null
 
-  /** All variables in the current scope, including private. */
-  [$descriptors]: Record<string | symbol, [descriptor: PropertyDescriptor, debug: null | ScopeVariableDebugInfo]>
+  /** The variable manager for this scope. */
+  [$scopeCtxVariableManager]: ScopeCtxVariableManager
 
-  /** revision of descriptors. specially includes `fallbackKey` for undeclared variables */
-  [$descriptorRevision]: Record<string | symbol, Ref<number>>
-
-  /** Prototype for descendants. Used to inherit descriptors from parent scope. */
-  [$protoForDescendants]: {
-    [k: string | symbol]: any
-    [$descriptors]: Record<string | symbol, [descriptor: PropertyDescriptor, debug: null | ScopeVariableDebugInfo]>
-    [$descriptorRevision]: Record<string | symbol, Ref<number>>
-  }
+  /** For descendants, Used to inherit variables from parent scope. */
+  [$variableZoneForDescendants]: ScopeCtx
 }
 
 export interface ScopeVariableOptions {
@@ -46,17 +157,11 @@ export interface ScopeVariableOptions {
   exposeAs?: string | symbol
 }
 
-export const $descriptors = Symbol('descriptors') // all of current scope, including private. store with current name
-const $protoForDescendants = Symbol('protoForDescendants')
-const $descriptorRevision = Symbol('descriptorRevision')
-const $fallbackKey = Symbol('fallbackKey')
-
 export interface ScopeVariableDebugInfo {
   name: string | symbol
   scope: ScopeCtx
   usedBy: Set<ScopeCtx>
   options: ScopeVariableOptions
-  revision: Ref<number>
   ref?: Ref
   source?: string
   // typing info?
@@ -68,44 +173,49 @@ export interface ScopeSetupOptionsBase<FrameworkComponent> {
   errorComponent?: FrameworkComponent
 }
 
-function create<T = any>(proto: any, data?: T): T {
-  const obj = Object.create(proto || null)
-  if (data) Object.assign(obj, data)
-  return obj
+export const scopeContextSetupHooks: ((self: ScopeCtx, parent: ScopeCtx | null) => void)[] = []
+
+// why separate this function?
+// because V8 fast-properties optimization will be applied to a returned object
+// ( use %DebugPrint(scope) to check )
+function baseCreate(parent: ScopeCtx | null): ScopeCtx {
+  const scope: ScopeCtx = parent ? Object.create(parent) : {}
+  scope[$scopeCtxVariableManager] = new ScopeCtxVariableManager(scope, parent?.[$scopeCtxVariableManager])
+  scope.$parentScope = parent
+  scope.$scope = scope
+  return scope
 }
 
-export function createScopeContext(parent: ScopeCtx | null): ScopeCtx {
-  const parentProto = parent?.[$protoForDescendants]
-  const scope = create<ScopeCtx>(
-    parentProto,
-    {
-      $parentScope: parent,
-      $scope: null as any,
+export function createScopeContext(parent?: ScopeCtx | null): ScopeCtx {
+  const parentPublic = parent?.[$variableZoneForDescendants] || null
+  const scope = baseCreate(parentPublic)
 
-      // this may contain private variables which are not exposed to descendants
-      [$descriptors]: create(parentProto?.[$descriptors]),
-      [$descriptorRevision]: create(parentProto?.[$descriptorRevision], {
-        [$fallbackKey]: shallowRef(0),
-      }),
+  // a sibling scope for descendants, which contains public variables only
+  const forDescendants = baseCreate(parentPublic)
+  forDescendants.$scope = scope
 
-      // for descendants inheriting
-      [$protoForDescendants]: create(parentProto, {
-        [$descriptors]: create(parentProto?.[$descriptors]),
-        [$descriptorRevision]: create(parentProto?.[$descriptorRevision], {
-          [$fallbackKey]: shallowRef(0),
-        }),
-      }),
-    },
-  )
+  scope[$variableZoneForDescendants] = forDescendants
 
-  return (scope.$scope = scope)
+  return scope
+}
+
+function disposeByDescriptors(s: ScopeCtx) {
+  if (!s) return
+  const descriptors = s[$scopeCtxVariableManager].descriptors
+
+  if (isDevelopmentMode) {
+    for (const name in descriptors) {
+      const debug = descriptors[name].$debug!
+      debug.usedBy.delete(s)
+    }
+  }
 }
 
 export function disposeScopeContext(scopeCtx: ScopeCtx): void {
-  const descriptors = scopeCtx[$descriptors]
-  Object.entries(descriptors).forEach(([/* name */, [/* descriptor */, debug]]) => {
-    if (isDevelopmentMode && debug) debug.usedBy.delete(scopeCtx)
-  })
+  scopeCtx = scopeCtx.$scope
+
+  disposeByDescriptors(scopeCtx)
+  disposeByDescriptors(scopeCtx[$variableZoneForDescendants])
 
   // TODO: check children-leaking: parent disposed but child still in use
 }
@@ -123,29 +233,23 @@ export function defineScopeVariable(scope: ScopeCtx, arg1: any, arg2?: any): voi
 
   const optionsMap: Record<string | symbol, ScopeVariableOptions> = typeof arg1 === 'string' || typeof arg1 === 'symbol'
     ? { [arg1]: arg2 }
-    : arg1
+    : { ...arg1 }
 
-  // all updated field revision counters, exclude `fallbackKey`
-  const revCounterQueue = [] as Ref<number>[]
-
-  // shortcuts
-  const selfRevisions = scope[$descriptorRevision]
-  const descendantScope = scope[$protoForDescendants]
-  const descendantsRevisions = descendantScope[$descriptorRevision]
+  const descendantScope = scope[$variableZoneForDescendants]
 
   // all updated descriptors, for Object.defineProperties
-  const selfDescriptors = {} as Record<string | symbol, PropertyDescriptor>
-  const descendantsDescriptors = {} as Record<string | symbol, PropertyDescriptor>
+  const selfDescriptors = {} as Record<string | symbol, ExtendedPropertyDescriptor>
+  const descendantsDescriptors = {} as Record<string | symbol, ExtendedPropertyDescriptor>
+
+  const selfMgr = scope[$scopeCtxVariableManager]
+  const descendantMgr = descendantScope[$scopeCtxVariableManager]
+
+  const selfDepend = selfMgr.depend
+  const descendantDepend = descendantMgr.depend
 
   for (const name in optionsMap) {
     const options = optionsMap[name]
     if (!options) continue
-
-    // 0. field revision counter
-
-    let revCounter = selfRevisions[name]
-    if (!revCounter) selfRevisions[name] = revCounter = shallowRef(0)
-    revCounterQueue.push(revCounter)
 
     // 1. create ref
 
@@ -167,13 +271,6 @@ export function defineScopeVariable(scope: ScopeCtx, arg1: any, arg2?: any): voi
 
     // 2. create descriptor
 
-    const descriptor: PropertyDescriptor = {
-      enumerable: true,
-      configurable: true,
-      get: () => (revCounter.value, ref.value),
-      set: newValue => void (ref.value = newValue),
-    }
-
     const debugInfo: null | ScopeVariableDebugInfo = !isDevelopmentMode
       ? null
       : {
@@ -181,36 +278,33 @@ export function defineScopeVariable(scope: ScopeCtx, arg1: any, arg2?: any): voi
           scope,
           options,
           ref,
-          revision: revCounter,
           usedBy: new Set([scope]),
           source: '',
         }
 
+    const descriptor: ExtendedPropertyDescriptor = {
+      enumerable: true,
+      configurable: true,
+      get: () => (selfDepend(name), ref.value),
+      set: newValue => void (ref.value = newValue),
+      $debug: debugInfo,
+    }
+
     // apply to descendants
     const exposeAs = options.private ? null : (options.exposeAs ?? name)
     if (exposeAs != null) {
-      descendantsDescriptors[exposeAs] = descriptor
-      descendantScope[$descriptors][name] = [descriptor, debugInfo]
+      descendantsDescriptors[exposeAs] = {
+        ...descriptor,
+        get: () => (descendantDepend(exposeAs), ref.value),
+      }
 
-      // because this property is inherited, we reuse same revision counter
-      const prevRevCounter = descendantsRevisions[exposeAs]
-      descendantsRevisions[exposeAs] = revCounter // force replace revision counter
-      if (prevRevCounter && prevRevCounter !== revCounter) revCounterQueue.push(prevRevCounter) // if did replaced, notify the old one when updated
+      if (isDevelopmentMode && debugInfo) debugInfo.usedBy.add(descendantScope)
     }
 
     // apply to self
     selfDescriptors[name] = descriptor
-    scope[$descriptors][name] = [descriptor, debugInfo]
   }
 
-  // batch defineProperties
-  if (Object.keys(descendantsDescriptors).length) {
-    Object.defineProperties(descendantScope, descendantsDescriptors)
-    revCounterQueue.push(descendantsRevisions[$fallbackKey])
-  }
-  Object.defineProperties(scope, selfDescriptors)
-
-  // notify revision counters
-  selfRevisions[$fallbackKey].value++
-  revCounterQueue.forEach(revCounter => revCounter.value++)
+  selfMgr.add(selfDescriptors)
+  descendantMgr.add(descendantsDescriptors)
 }

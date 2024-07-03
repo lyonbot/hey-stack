@@ -8,7 +8,7 @@ export type ScopeForProps = ScopeForPropsBase<FrameworkComponent>
 export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
 export const SCOPE_CONTEXT_KEY = Symbol('scopeCtx')
-export type FrameworkComponent = any // import('vue').Component
+export type FrameworkComponent<_Props = any> = any // import('vue').Component
 export type ScopeComponentSetupFn = (scopeCtx: ScopeCtx) => MaybePromise<() => VNode>
 
 function useNewScopeContext(ctx: SetupContext): ScopeCtx {

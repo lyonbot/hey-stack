@@ -15,6 +15,8 @@ export const App = defineScopeComponent((ctx) => {
   });
 
   const __hoisted_todos = () => ctx.todos; // this prevents React from unnecessary re-renders
+  const __hoisted_add_todo = () => ctx.todos.push({ id: (ctx.todos.at(-1)?.id ?? -1) + 1, text: "New todo" });
+
   return () => (
     <div>
       <h1>
@@ -31,7 +33,7 @@ export const App = defineScopeComponent((ctx) => {
       <ul>
         <ScopeFor items={__hoisted_todos} as="todo" keyAs="index" childComponent={TodoItem} />
         <li>
-          <button onClick={() => ctx.todos.push({ id: (ctx.todos.at(-1)?.id ?? -1) + 1, text: "New todo" })}>
+          <button onClick={__hoisted_add_todo}>
             Add todo
           </button>
         </li>

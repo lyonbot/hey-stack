@@ -11,7 +11,7 @@ export type ScopeForProps = ScopeForPropsBase<FrameworkComponent>
 export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
 export const ScopeCtxContext = createContext<ScopeCtx | null>(null)
-export type FrameworkComponent = ComponentType
+export type FrameworkComponent<Props = any> = ComponentType<Props>
 export type ScopeComponentSetupFn = (scopeCtx: ScopeCtx) => MaybePromise<() => JSX.Element>
 
 /**

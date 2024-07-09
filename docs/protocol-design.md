@@ -10,14 +10,14 @@ Given such fragment:
   <div> welcome! dear {user.name} </div>
 
   <scope>
-    <scope:variable name="items" value="xxxxx" />
+    <scope:var name="items" value="xxxxx" />
     <scope:onMount handler="do something" />
 
     <!-- `items` is defined in current scope -->
     <div> we got {items.length} items </div>
 
-    <scope:for each="items" as="item" keyAs="index" itemsAs="array">
-      <scope:computed private name="hash" getter="objectHash(item)" />
+    <scope:for items="items" as="item" keyAs="index" itemsAs="array">
+      <scope:var private name="hash" get="objectHash(item)" />
       <section>
         <div> {item.name} </div>
         <div> {item.age} </div>
@@ -36,6 +36,8 @@ The "xml fragment" example can be easily rewritten as a pseudo JSX code:
 **Unimportant fun fact**: pseudo code can not actually works in React, but might works in SolidJS thanks to "dom-expression"
 
 ```jsx
+import { scope, scopeFor, scopeVar } from "hey-stack-macro";
+
 // Note: each fragment can seamless treat as a new "scope"
 // because "scope" inherits all variables from ascendent
 
@@ -44,7 +46,7 @@ const Page = scope(() => {
     <div>
       <div> welcome! dear {user.name} </div>
       {scope(() => {
-        const items = xxxxx;
+        const items = scopeVar(xxxxx);
         onMount(() => {
           /* do something */
         });
@@ -53,20 +55,16 @@ const Page = scope(() => {
           <>
             <div> we got {items.length} items </div>
 
-            {scopeFor(
-              () => items, // is a getter function. but maybe not useless in SolidJS because "props" is a reactive object and `props.items` already reactive
-              ({ item: item, index: index, items: array }) => {
-                // ^^ arguments must be a deconstructing expression, to make TypeScript works and CodeGen analyze
-                $computed_private: const hash = objectHash(item);
-                return (
-                  <section>
-                    <div> {item.name} </div>
-                    <div> {item.age} </div>
-                    <div> {hash} </div>
-                  </section>
-                );
-              }
-            )}
+            {scopeFor(items, (item, key, items) => {
+              const hash = scopeVar.computed.private(objectHash(item));
+              return (
+                <section>
+                  <div> {item.name} </div>
+                  <div> {item.age} </div>
+                  <div> {hash} </div>
+                </section>
+              );
+            })}
           </>
         );
       })}
@@ -74,6 +72,18 @@ const Page = scope(() => {
   );
 });
 ```
+
+#### Note of "computed"
+
+The `foo = scopeVar.computed(expression)` marks the variable as computed, it will auto re-evaluate and re-render related components. You can directly use `foo` to get the value.
+
+You can still use Vue's original `computed` like `foo = computed(() => expression)`, but to take the value, you need to use `foo.value` instead of `foo`, which may be inconvenient.
+
+#### Note of "for" list
+
+The `scopeFor(items, render)` behaves like a reactive `map` function.
+
+- in compiled code, the `items` will become a getter function like `() => items`, and behave like a computed value.
 
 ### Compile to Real JSX Components
 
@@ -101,7 +111,9 @@ const Page = defineScopeComponent((__scopeCtx) => {
 });
 
 const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
-  defineScopeVariable(__scopeCtx, "items", { value: xxxxx });
+  defineScopeVariable(__scopeCtx, {
+    items: { value: xxxxx },
+  });
   onMount(() => {
     /* do something */
   });
@@ -113,7 +125,7 @@ const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
     <>
       <div> we got {__scopeCtx.items.length} items </div>
       <ScopeFor
-        items={__hoisted_items}
+        items={__hoisted_items /* note: is a getter function */}
         as="item"
         keyAs="index"
         itemsAs="array"
@@ -124,9 +136,11 @@ const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
 });
 
 const ChildComponent2 = defineScopeComponent((__scopeCtx) => {
-  defineScopeVariable(__scopeCtx, "hash", {
-    private: true,
-    get: () => objectHash(__scopeCtx.item),
+  defineScopeVariable(__scopeCtx, {
+    hash: {
+      private: true,
+      get: () => objectHash(__scopeCtx.item),
+    },
   });
 
   return () => (
@@ -145,24 +159,42 @@ For example, in React, it will add something like `<ScopeContext.Provider>` and 
 
 ## For Designer and Developer
 
-### Variable Typing
+Designer and Developer may write (1) the XML DSL file, or (2) the pseudo code. Then use compiler to generate the real JSX components.
 
-To make refactoring and modularizing easier, we need to organize variables and make type annotations.
+```
+         transpiler            compiler     +runtime & framework
+[ XML DSL ] ---> [ Pseudo Code ] ---> [ Code ] -------> [ 🎉 Run in Browser ]
+```
 
-Luckily it is easy to attach typescript annotations to the XML and the pseudo code.
+### Works with XML DSL
 
-Especially, because the pseudo code is already nested, we can leverage TypeScript's intelligent inferring, auto-completion directly -- it just works!
+The structured XML DSL is easy to read and write, and managed by a visual editor.
 
-### Refactor: Extracting & Cross-Component variable Typing
+### Works with Pseudo Code
 
-When extracting a part of JSX into a new "Scope Component", we can still find what variables are referenced in the extracted JSX part, and make a type copy into the new `scope(...)` like this:
+The pseudo code is totally valid JSX/TSX, and can be used in any IDE tools. All you need is import some functions from "hey-stack-macro" package.
+
+- `scope` - define a new scope component
+- `scopeVar` - optional, mark variable as computed, private, etc.
+- `scopeFor` - render a list of items
+
+With the typed macro package, these features are out-of-box supported by your favorite IDE:
+
+- IntelliSense
+- type checking
+
+To make refactoring and modularizing easier, we need an editor extension to:
+
+#### Refactor: Extract to new "Scope Component"
+
+You can extract a part of JSX into a new component. See example of `ExtractedComponent1` below:
 
 ```tsx
 const OriginalPage = scope(() => {
   const items = await fetchItems();
   const user = xxxxxx;
 
-  return () => (
+  return (
     <div>
       <p>Hello dear {user.name}</p>
       <ExtractedComponent1 />
@@ -171,9 +203,9 @@ const OriginalPage = scope(() => {
 });
 
 const ExtractedComponent1 = scope(() => {
-  // the label tells CodeGen this variable is inherited from outer scope
-  $inherited: var items!: Awaited<ReturnType<typeof fetchItems>>;
-  $computed_private: var itemsHash = objectHash(items);
+  // the scopeVar.inherited() tells CodeGen this variable is inherited from outer scope
+  const items: Awaited<ReturnType<typeof fetchItems>> = scopeVar.inherited();
+  const itemsHash = scopeVar.computed.private(objectHash(items));
 
   return (
     <div>
@@ -184,18 +216,17 @@ const ExtractedComponent1 = scope(() => {
 });
 ```
 
-the `$inherited:` label tells CodeGen this variable is inherited from outer scope. The labelled code line will be removed by CodeGen.
+Beware that `items` in `ExtractedComponent1` is extracted from outer scope! When page run in browser, it will inherit from outer scope (which is `OriginalPage`). -- this works like a implicit context. In later version, we'll also provide something like `props` to make the passed values explicit.
 
-With labels, code is still valid TypeScript. Beware the `!` mark after variable name, it is introduced to suppress TypeScript's 2454 Error (variable used before initializing)
+There is a strategy to handle inherited variables, when extracting:
 
-As for the IDE tools, when user try to extract a JSX part:
+- If `your_var` is only used by the extracted JSX, we'll **suggest** to move it to new component, or you can still keep it in the original component.
 
-- if some variables are only used in the JSX-to-be-extracted, we ask user determine which variables are moved to new component, which are merely `$inherited:`
+- If `your_var` is **private** and can't be moved, we ask user to choose (1) make it public and optionally `exposeAs` a new name (2) _TBD: pass it as a prop_
 
-- **private variables** cannot be inherited. if user refused (or unable to) move it to new component, we ask user to choose (1) make it public and renamed (2)
+### Runtime DevTool
 
-### Visualize and Trace variable source Scope
+In runtime DevTool, you can :
 
-How can developers ensure that they're using the correct scope when defining variables or accessing existing ones?
-
-In runtime DevTool, aside the component tree, we shall provide a tool to locate the source scopes of variables, and which sub-scopes are using the variables.
+- view the scope tree.
+- find the source scope of variables.

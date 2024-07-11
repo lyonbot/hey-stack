@@ -54,6 +54,8 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@vitest/ui@1.6.0)
 
+  packages/macro: {}
+
   packages/runtime-core:
     dependencies:
       '@vue/reactivity':
@@ -94,6 +96,24 @@ importers:
       vue:
         specifier: ^3.4.30
         version: 3.4.30(typescript@5.5.2)
+
+  packages/transpiler:
+    devDependencies:
+      '@babel/core':
+        specifier: ^7.24.7
+        version: 7.24.7
+      '@babel/plugin-syntax-jsx':
+        specifier: ^7.24.7
+        version: 7.24.7(@babel/core@7.24.7)
+      '@babel/types':
+        specifier: ^7.24.7
+        version: 7.24.7
+      '@types/babel__core':
+        specifier: ^7.20.5
+        version: 7.20.5
+      '@types/babel__traverse':
+        specifier: ^7.20.6
+        version: 7.20.6
 
 packages:
 
@@ -269,6 +289,16 @@ packages:
     hasBin: true
     dependencies:
       '@babel/types': 7.24.7
+
+  /@babel/plugin-syntax-jsx@7.24.7(@babel/core@7.24.7):
+    resolution: {integrity: sha512-6ddciUPe/mpMnOKv/U+RSd2vvVy+Yw/JfBB0ZHYjEZt9NLHmCUylNYlsbqCCS1Bffjlb0fCwC9Vqz+sBz6PsiQ==}
+    engines: {node: '>=6.9.0'}
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
+    dependencies:
+      '@babel/core': 7.24.7
+      '@babel/helper-plugin-utils': 7.24.7
+    dev: true
 
   /@babel/plugin-transform-react-jsx-self@7.24.7(@babel/core@7.24.7):
     resolution: {integrity: sha512-fOPQYbGSgH0HUp4UJO4sMBFjY6DuWq+2i8rixyUMb3CdGixs/gccURvYOAhajBdKDoGajFr3mUq5rH3phtkGzw==}

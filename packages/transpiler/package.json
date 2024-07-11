@@ -1,0 +1,24 @@
+{
+  "name": "hey-stack-transpiler",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "vitest",
+    "play": "ts-node --esm -T test/playground.ts"
+  },
+  "files": [
+    "lib"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.7",
+    "@babel/plugin-syntax-jsx": "^7.24.7",
+    "@babel/types": "^7.24.7",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__traverse": "^7.20.6"
+  }
+}

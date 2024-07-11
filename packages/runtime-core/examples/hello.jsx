@@ -1,12 +1,10 @@
 import { defineScopeComponent, defineScopeVariable, ScopeFor } from "hey-stack-framework";
 
 export const App = defineScopeComponent((ctx) => {
-  defineScopeVariable(ctx, "index", { value: 0 });
-  defineScopeVariable(ctx, "names", {
-    value: ["John", "Jane", "Joe", "Jack", "Jill", "Jim", "Joey", "Johnny", "Jon", "Jerry"],
-  });
-  defineScopeVariable(ctx, "name", {
-    get: () => ctx.names[ctx.index],
+  defineScopeVariable(ctx, {
+    index: { value: 0 },
+    names: { value: ["John", "Jane", "Joe", "Jack", "Jill", "Jim", "Joey", "Johnny", "Jon", "Jerry"] },
+    name: { get: () => ctx.names[ctx.index] },
   });
 
   return () => (

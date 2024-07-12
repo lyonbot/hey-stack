@@ -4,19 +4,30 @@
  */
 
 // @ts-ignore
-type JSXElement = JSX.ELement
+type JSXElement = JSX.Element
+type Component = (props?: any) => JSXElement
 
 /**
  * define a new scope component
  */
-export function scope(fn: () => JSXElement): any
+export function scopeComponent(fn: () => JSXElement): Component
+
+/**
+ * define and render a new scope component (use it in JSX)
+ */
+export function Scope(fn: () => JSXElement): JSXElement
 
 interface ScopeVar {
   <T>(value: T): T
-  computed: ScopeVar
   private: ScopeVar
+
+  computed: ComputedScopeVar
   inherited: <T = any>() => T
-  // TODO: props
+}
+
+interface ComputedScopeVar {
+  <T>(value: T, setter?: (value: T) => void): T
+  private: ComputedScopeVar
 }
 
 /**
@@ -25,17 +36,17 @@ interface ScopeVar {
 export const scopeVar: ScopeVar
 
 /**
- * render a list of items
+ * render a list of items (use it in JSX)
  */
-export function scopeFor<T>(
+export function ScopeFor<T>(
   items: T[] | null | undefined,
-  render: (item: T, key: number, array: T[]) => JSXElement
+  renderItem: (item: T, key: number, array: T[]) => JSXElement
 ): JSXElement
-export function scopeFor<T>(
+export function ScopeFor<T>(
   items: Record<string, T> | null | undefined,
-  render: (item: T, key: string, array: T[]) => JSXElement
+  renderItem: (item: T, key: string, array: T[]) => JSXElement
 ): JSXElement
-export function scopeFor<T>(
+export function ScopeFor<T>(
   items: T[] | Record<string | number | symbol, T> | null | undefined,
-  render: (item: T, key: any, array: T[]) => JSXElement
+  renderItem: (item: T, key: any, array: T[]) => JSXElement
 ): JSXElement

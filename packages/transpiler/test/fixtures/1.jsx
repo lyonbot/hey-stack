@@ -1,13 +1,13 @@
-import { scope, scopeFor, scopeVar } from "hey-stack-macro";
+import { Scope, scopeComponent, ScopeFor, scopeVar } from "hey-stack-macro";
 
 // Note: each fragment can seamless treat as a new "scope"
 // because "scope" inherits all variables from ascendent
 
-const Page = scope(() => {
+const Page = scopeComponent(() => {
   return (
     <div>
       <div> welcome! dear {user.name} </div>
-      {scope(() => {
+      {Scope(() => {
         const items = scopeVar(xxxxx);
         onMount(() => {
           /* do something */
@@ -17,7 +17,7 @@ const Page = scope(() => {
           <>
             <div> we got {items.length} items </div>
 
-            {scopeFor(items, (item, key, items) => {
+            {ScopeFor(items, (item, key, items) => {
               const hash = scopeVar.computed.private(objectHash(item));
               return (
                 <section>

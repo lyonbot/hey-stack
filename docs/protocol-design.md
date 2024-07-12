@@ -36,16 +36,16 @@ The "xml fragment" example can be easily rewritten as a pseudo JSX code:
 **Unimportant fun fact**: pseudo code can not actually works in React, but might works in SolidJS thanks to "dom-expression"
 
 ```jsx
-import { scope, scopeFor, scopeVar } from "hey-stack-macro";
+import { scopeComponent, Scope, ScopeFor, scopeVar } from "hey-stack-macro";
 
 // Note: each fragment can seamless treat as a new "scope"
 // because "scope" inherits all variables from ascendent
 
-const Page = scope(() => {
+const Page = scopeComponent(() => {
   return (
     <div>
       <div> welcome! dear {user.name} </div>
-      {scope(() => {
+      {Scope(() => {
         const items = scopeVar(xxxxx);
         onMount(() => {
           /* do something */
@@ -55,7 +55,7 @@ const Page = scope(() => {
           <>
             <div> we got {items.length} items </div>
 
-            {scopeFor(items, (item, key, items) => {
+            {ScopeFor(items, (item, key, items) => {
               const hash = scopeVar.computed.private(objectHash(item));
               return (
                 <section>
@@ -79,17 +79,17 @@ The `foo = scopeVar.computed(expression)` marks the variable as computed, it wil
 
 You can still use Vue's original `computed` like `foo = computed(() => expression)`, but to take the value, you need to use `foo.value` instead of `foo`, which may be inconvenient.
 
-#### Note of "for" list
+#### Note of list rendering
 
-The `scopeFor(items, render)` behaves like a reactive `map` function.
+The `ScopeFor(items, itemRenderFn)` renders a list of items.
 
 - in compiled code, the `items` will become a getter function like `() => items`, and behave like a computed value.
 
 ### Compile to Real JSX Components
 
-Then to make it real, we separate `scope()` blocks into components.
+Then to make it real, we separate `Scope()` blocks into components.
 
-1. extract the fragment of `scope(...)` and `scopeFor(...)` to components.
+1. extract the fragment of `Scope(...)` and `ScopeFor(...)` to components.
 2. in the component, find all variables that NOT declared in the component function, then add prefix `_scopeCtx.` to them.
 3. prepend `_scopeCtx = ...` into scope component code.
 
@@ -174,9 +174,10 @@ The structured XML DSL is easy to read and write, and managed by a visual editor
 
 The pseudo code is totally valid JSX/TSX, and can be used in any IDE tools. All you need is import some functions from "hey-stack-macro" package.
 
-- `scope` - define a new scope component
+- `scopeComponent` - define a new scope component
 - `scopeVar` - optional, mark variable as computed, private, etc.
-- `scopeFor` - render a list of items
+- `Scope` - instantly define and render a new scope component (use it in JSX)
+- `ScopeFor` - render a list of items (use it in JSX)
 
 With the typed macro package, these features are out-of-box supported by your favorite IDE:
 
@@ -190,7 +191,7 @@ To make refactoring and modularizing easier, we need an editor extension to:
 You can extract a part of JSX into a new component. See example of `ExtractedComponent1` below:
 
 ```tsx
-const OriginalPage = scope(() => {
+const OriginalPage = scopeComponent(() => {
   const items = await fetchItems();
   const user = xxxxxx;
 
@@ -202,7 +203,7 @@ const OriginalPage = scope(() => {
   );
 });
 
-const ExtractedComponent1 = scope(() => {
+const ExtractedComponent1 = scopeComponent(() => {
   // the scopeVar.inherited() tells CodeGen this variable is inherited from outer scope
   const items: Awaited<ReturnType<typeof fetchItems>> = scopeVar.inherited();
   const itemsHash = scopeVar.computed.private(objectHash(items));

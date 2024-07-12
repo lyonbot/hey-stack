@@ -7,6 +7,8 @@ const throwProxy = new Proxy(throwError, {
   set: throwError,
 })
 
-export const scope = throwProxy
+export const scopeComponent = throwProxy
 export const scopeVar = throwProxy
-export const scopeFor = throwProxy
+
+export const Scope = throwProxy
+export const ScopeFor = throwProxy

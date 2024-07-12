@@ -90,5 +90,6 @@ hey-stack' development can be based on other framework:
 
 ## CodeGen: SWC plugin to convert pseudo code
 
-- separate `scope()` and `scopeFor()` into components
+- separate `Scope()` and `ScopeFor()` into components
+- also works with `scopeComponent()`
 - Detect "global" variable and add prefix

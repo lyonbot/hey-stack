@@ -7,8 +7,9 @@ const Page = scopeComponent(() => {
   return (
     <div>
       <div> welcome! dear {user.name} </div>
-      {Scope(() => {
+      {Scope("local stuff", () => {
         const items = scopeVar(xxxxx);
+        const someComputed = scopeVar.computed(state.name, (c) => state.setName(c));
         onMount(() => {
           /* do something */
         });

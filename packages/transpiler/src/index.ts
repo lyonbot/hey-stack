@@ -4,6 +4,7 @@ import type { PluginObj } from '@babel/core'
 import type { NodePath, Scope } from '@babel/traverse'
 import type * as t from '@babel/types'
 
+const $pluginState = Symbol('pluginState')
 interface PluginState {
   macroSource: Record<string, string> // { localName: macroName }
   runtimeSource: Record<string, string>
@@ -32,15 +33,18 @@ interface ScopeSetupFnState {
 }
 const $scopeSetupFn = Symbol('isScopeSetupFn')
 
-function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
+function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: PluginState }> {
   /**
    * handle `Scope(...)`, `scopeVar(...)` etc. call-expression
    */
   const macroHandler = {
     scopeComponent(path, state) {
+      // scopeComponent(name, setupFn)
+      // scopeComponent(setupFn)
+
       path.set('callee', state.getRuntimeFunctionIdentifier('defineScopeComponent', path.scope))
 
-      const setupFn = path.get('arguments')[0]
+      const setupFn = path.get('arguments')[1] || path.get('arguments')[0]
       if (!setupFn.isFunction()) throw new Error('scope() must be used with a function')
       if (setupFn.node.params.length > 0) throw new Error('scope() setupFn cannot have parameters')
 
@@ -55,6 +59,16 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
       setupFn.setData($scopeSetupFn, setupFnState)
       setupFn.node.params.push(ctxParam)
       setupFn.scope.crawl()
+
+      // optional name
+      let name = 'AnonymousComponent'
+      const arg0 = path.get('arguments')[0]
+      if (arg0.isStringLiteral()) name = arg0.node.value.replace(/[^\w]+/g, '') || name
+      if (!/[A-Z]/.test(name[0])) name = `C${name}`
+
+      return {
+        name,
+      }
     },
     scopeVar(path) {
       // TODO: beware that `path.node.callee` can be a MemberExpression.
@@ -104,7 +118,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
 
         if (args.length >= 2) {
           // has setter
-          optionsObjectProperties.push(types.objectProperty(types.identifier('set'), types.arrowFunctionExpression([], args[1])))
+          optionsObjectProperties.push(types.objectProperty(types.identifier('set'), args[1]))
         }
       }
       else {
@@ -128,10 +142,13 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
       const setupFnPath = path.findParent(p => p.isFunction() && p.getData($scopeSetupFn)) as NodePath<t.Function>
       if (!setupFnPath) throw new Error('Scope() must be used in a scopeComponent(), Scope() or ScopeFor()')
 
+      // reuse `scopeComponent()` logic
+      const { name } = macroHandler.scopeComponent(path, state)
+
       const setupFn = setupFnPath.getData($scopeSetupFn) as ScopeSetupFnState
       setupFn.toHoist.push({
-        path: path,
-        name: 'NewComponent', // first letter must be uppercase
+        path,
+        name, // first letter must be uppercase
         onHoist(name, stubPath) {
           replaceWithJSXElement(
             types,
@@ -141,9 +158,6 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
           )
         },
       })
-
-      // reuse `scopeComponent()` logic
-      macroHandler.scopeComponent(path, state)
     },
     ScopeFor(path, state) {
       // turn `ScopeFor(items, (item, key, items) => ...)` into `<ScopeFor>` and a new `scopeComponent()`
@@ -263,9 +277,13 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
   return {
     visitor: {
       Program: {
-        enter(path, state) {
-          state.macroSource = {}
-          state.runtimeSource = {}
+        enter(path, globalState) {
+          const state: PluginState = globalState[$pluginState] = {
+            macroSource: {},
+            runtimeSource: {},
+            getRuntimeFunctionIdentifier: null as any, // will be set later
+            getMacroIdentifier: null as any,
+          }
 
           let runtimeImport: t.ImportDeclaration
           let macroImport: NodePath<t.ImportDeclaration>
@@ -313,6 +331,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
             )
             scope.crawl()
 
+            state.runtimeSource[newId] = source
             return types.identifier(newId)
           }
           state.getMacroIdentifier = (source, scope) => {
@@ -339,6 +358,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
             )
             scope.crawl()
 
+            state.macroSource[newId] = source
             return types.identifier(newId)
           }
         },
@@ -349,14 +369,14 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
         if (!types.isIdentifier(callee)) return
 
         const binding = path.scope.getBinding(callee.name)
-        const importSource = binding && binding.path.isImportSpecifier() && state.macroSource[callee.name]
+        const importSource = binding && binding.path.isImportSpecifier() && state[$pluginState].macroSource[callee.name]
         if (!importSource || !(importSource in macroHandler)) return
 
         // this function call is a macro
-        macroHandler[importSource as MacroName](path, state)
+        macroHandler[importSource as MacroName](path, state[$pluginState])
       },
       Function: {
-        exit(path, state) {
+        exit(path, globalState) {
           const setupFn = path.getData($scopeSetupFn) as ScopeSetupFnState
           if (!setupFn) return
           path.setData($scopeSetupFn, undefined) // transformed, kill the state
@@ -395,7 +415,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<PluginState> {
               declaration.insertBefore(
                 types.expressionStatement(
                   types.callExpression(
-                    state.getRuntimeFunctionIdentifier('defineScopeVariable', path.scope),
+                    globalState[$pluginState].getRuntimeFunctionIdentifier('defineScopeVariable', path.scope),
                     [
                       types.identifier(setupFn.ctxParamName),
                       defineOptions,

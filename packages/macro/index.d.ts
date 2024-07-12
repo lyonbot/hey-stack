@@ -10,11 +10,13 @@ type Component = (props?: any) => JSXElement
 /**
  * define a new scope component
  */
+export function scopeComponent(name: string, fn: () => JSXElement): Component
 export function scopeComponent(fn: () => JSXElement): Component
 
 /**
  * define and render a new scope component (use it in JSX)
  */
+export function Scope(name: string, fn: () => JSXElement): JSXElement
 export function Scope(fn: () => JSXElement): JSXElement
 
 interface ScopeVar {

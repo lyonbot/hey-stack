@@ -1,15 +1,16 @@
 // @ts-check
 
 import type { PluginObj } from '@babel/core'
-import type { NodePath, Scope } from '@babel/traverse'
+import type { NodePath } from '@babel/traverse'
 import type * as t from '@babel/types'
+
+import { getImportingManager, getReturns, getUidInScope, ImportingManager, replaceWithJSXElement } from './babelUtils'
+import { isComponentName, toComponentName } from './utils'
 
 const $pluginState = Symbol('pluginState')
 interface PluginState {
-  macroSource: Record<string, string> // { localName: macroName }
-  runtimeSource: Record<string, string>
-  getRuntimeFunctionIdentifier: (source: string, currentScope: Scope) => t.Identifier
-  getMacroIdentifier: (source: string, scope: Scope) => t.Identifier
+  macroImport: ImportingManager
+  runtimeImport: ImportingManager
 }
 
 type MacroName = 'scopeComponent' | 'scopeVar' | 'Scope' | 'ScopeFor'
@@ -38,11 +39,12 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
    * handle `Scope(...)`, `scopeVar(...)` etc. call-expression
    */
   const macroHandler = {
-    scopeComponent(path, state) {
+    scopeComponent(path) {
+      // generate a new SetupFnState for `setupFn` and further traversing
+      // no code modified here
+
       // scopeComponent(name, setupFn)
       // scopeComponent(setupFn)
-
-      path.set('callee', state.getRuntimeFunctionIdentifier('defineScopeComponent', path.scope))
 
       const setupFn = path.get('arguments')[1] || path.get('arguments')[0]
       if (!setupFn.isFunction()) throw new Error('scope() must be used with a function')
@@ -63,15 +65,17 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       // optional name
       let name = 'AnonymousComponent'
       const arg0 = path.get('arguments')[0]
-      if (arg0.isStringLiteral()) name = arg0.node.value.replace(/[^\w]+/g, '') || name
-      if (!/[A-Z]/.test(name[0])) name = `C${name}`
+      if (arg0.isStringLiteral() && arg0.node.value) name = toComponentName(arg0.node.value)
 
       return {
         name,
       }
     },
     scopeVar(path) {
-      // TODO: beware that `path.node.callee` can be a MemberExpression.
+      // collect all scopeVar() and fill into nearest setupFnState
+      // no code modified here
+
+      // beware that `path.node.callee` can be a MemberExpression.
       // eg. `scopeVar.computed(x)`
       //     `scopeVar.computed.private(expr, val => ...)`
       //     `scopeVar.inherited()`
@@ -136,14 +140,14 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         options: types.objectExpression(optionsObjectProperties),
       }
     },
-    Scope(path, state) {
+    Scope(path) {
       // turn `Scope(() => ...)` into `<NewComponent1234>` and a new `scopeComponent()`
 
       const setupFnPath = path.findParent(p => p.isFunction() && p.getData($scopeSetupFn)) as NodePath<t.Function>
       if (!setupFnPath) throw new Error('Scope() must be used in a scopeComponent(), Scope() or ScopeFor()')
 
       // reuse `scopeComponent()` logic
-      const { name } = macroHandler.scopeComponent(path, state)
+      const { name } = macroHandler.scopeComponent(path)
 
       const setupFn = setupFnPath.getData($scopeSetupFn) as ScopeSetupFnState
       setupFn.toHoist.push({
@@ -174,7 +178,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
           : arg2.node.body
 
       const childComponent = types.callExpression(
-        state.getMacroIdentifier('scopeComponent', path.scope),
+        types.identifier(state.macroImport.getImportedSymbol('scopeComponent', path.scope)),
         [
           types.arrowFunctionExpression([], childComponentBody, arg2.node.async),
         ],
@@ -229,7 +233,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
                 types.identifier(name),
                 types.callExpression(
                   types.memberExpression(
-                    state.getMacroIdentifier('scopeVar', path.scope),
+                    types.identifier(state.macroImport.getImportedSymbol('scopeVar', path.scope)),
                     types.identifier('inherited'), // scopeVar.inherited
                   ),
                   [],
@@ -248,7 +252,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       const jsxPath = replaceWithJSXElement(
         types,
         path,
-        state.getRuntimeFunctionIdentifier('ScopeFor', path.scope).name,
+        state.runtimeImport.getImportedSymbol('ScopeFor', path.scope, isComponentName),
         jsxAttrs,
       )
       jsxPath.visit()
@@ -278,94 +282,17 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
     visitor: {
       Program: {
         enter(path, globalState) {
-          const state: PluginState = globalState[$pluginState] = {
-            macroSource: {},
-            runtimeSource: {},
-            getRuntimeFunctionIdentifier: null as any, // will be set later
-            getMacroIdentifier: null as any,
-          }
-
-          let runtimeImport: t.ImportDeclaration
-          let macroImport: NodePath<t.ImportDeclaration>
-
-          path.traverse({
-            ImportDeclaration(importPath) {
-              if (importPath.node.source.value === macroPackageId) {
-                macroImport = importPath
-                importPath.node.specifiers.forEach((specifier) => {
-                  if (!types.isImportSpecifier(specifier)) return
-                  if (!types.isIdentifier(specifier.imported)) return
-                  state.macroSource[specifier.local.name] = specifier.imported.name
-                })
-              }
-
-              if (importPath.node.source.value === runtimePackageId) {
-                runtimeImport = importPath.node
-              }
-            },
-          })
-
-          state.getRuntimeFunctionIdentifier = (source, scope) => {
-            if (!runtimeImport) {
-              runtimeImport = types.importDeclaration([], types.stringLiteral(runtimePackageId))
-              path.unshiftContainer('body', runtimeImport)
-            }
-
-            // check if existing identifier is available in current scope
-            const goodSpec = runtimeImport.specifiers.find((spec) => {
-              if (!types.isImportSpecifier(spec)) return false
-              if (!types.isIdentifier(spec.imported) || spec.imported.name !== source) return false
-
-              const binding = scope.getBinding(spec.local.name)
-              if (!binding || binding.path.node === spec) return true // yes directly use
-
-              if (!binding.path.isImportSpecifier()) return false
-              return binding.path.parent === runtimeImport
-            })
-            if (goodSpec) return types.identifier(goodSpec.local.name)
-
-            // create new identifier
-            const newId = getValidIdentifierNameInScope(source, scope)
-            runtimeImport.specifiers.push(
-              types.importSpecifier(types.identifier(newId), types.identifier(source)),
-            )
-            scope.crawl()
-
-            state.runtimeSource[newId] = source
-            return types.identifier(newId)
-          }
-          state.getMacroIdentifier = (source, scope) => {
-            if (!macroImport.node) {
-              macroImport = path.unshiftContainer('body',
-                types.importDeclaration([], types.stringLiteral(macroPackageId)),
-              )[0]
-            }
-
-            // find a useable identifier
-            for (const specifier of macroImport.node.specifiers) {
-              if (!types.isImportSpecifier(specifier)) continue
-              if (!types.isIdentifier(specifier.imported)) continue
-              if (specifier.imported.name !== source) continue
-
-              const binding = scope.getBinding(specifier.local.name)
-              if (binding && binding.path.node === specifier) return types.identifier(specifier.local.name)
-            }
-
-            // generate a new identifier
-            const newId = getValidIdentifierNameInScope(source, scope)
-            macroImport.node.specifiers.push(
-              types.importSpecifier(types.identifier(newId), types.identifier(source)),
-            )
-            scope.crawl()
-
-            state.macroSource[newId] = source
-            return types.identifier(newId)
+          globalState[$pluginState] = {
+            macroImport: getImportingManager(types, path, macroPackageId),
+            runtimeImport: getImportingManager(types, path, runtimePackageId),
           }
         },
-        exit(programPath) {
+        exit(programPath, globalState) {
+          const state = globalState[$pluginState]
+
           // remove macro import
           const scope = programPath.scope
-          const macroImports = programPath.get('body').filter(p => p.isImportDeclaration() && p.node.source.value === macroPackageId) as NodePath<t.ImportDeclaration>[]
+          const macroImports = state.macroImport.getImportDeclarations()
           scope.crawl()
 
           for (const path of macroImports) {
@@ -381,23 +308,30 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
           }
         },
       },
-      CallExpression(path, state) {
+      CallExpression(path, globalState) {
+        const state = globalState[$pluginState]
+
         let callee = path.node.callee
-        while (types.isMemberExpression(callee)) callee = callee.object
+        while (types.isMemberExpression(callee)) callee = callee.object // extract `scopeVar` from `scopeVar.foo.bar()`
         if (!types.isIdentifier(callee)) return
 
-        const binding = path.scope.getBinding(callee.name)
-        const importSource = binding && binding.path.isImportSpecifier() && state[$pluginState].macroSource[callee.name]
+        const importSource = state.macroImport.isImportedSymbol(path.scope.getBinding(callee.name)?.path)
         if (!importSource || !(importSource in macroHandler)) return
 
         // this function call is a macro
-        macroHandler[importSource as MacroName](path, state[$pluginState])
+        macroHandler[importSource as MacroName](path, state)
       },
       Function: {
         exit(path, globalState) {
+          const state = globalState[$pluginState]
           const setupFn = path.getData($scopeSetupFn) as ScopeSetupFnState
           if (!setupFn) return
           path.setData($scopeSetupFn, undefined) // transformed, kill the state
+
+          // turn `scopeComponent()` into `defineScopeComponent()`
+          setupFn.definePath.set('callee', types.identifier(
+            state.runtimeImport.getImportedSymbol('defineScopeComponent', path.scope),
+          ))
 
           function transformDefineScopeVariable() {
             // insert `defineScopeVariable` call
@@ -433,7 +367,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
               declaration.insertBefore(
                 types.expressionStatement(
                   types.callExpression(
-                    globalState[$pluginState].getRuntimeFunctionIdentifier('defineScopeVariable', path.scope),
+                    types.identifier(state.runtimeImport.getImportedSymbol('defineScopeVariable', path.scope)),
                     [
                       types.identifier(setupFn.ctxParamName),
                       defineOptions,
@@ -482,7 +416,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
             const tasks = setupFn.toHoist.splice(0)
             tasks.forEach(({ path, name }) => {
-              const newName = getValidIdentifierNameInScope(name, path.scope)
+              const newName = getUidInScope(name, path.scope)
               hoistedDeclaratorNodes.push(types.variableDeclarator(types.identifier(newName), path.node))
               newNames.push(newName)
               stubPaths.push(path.replaceWith(types.identifier(newName))[0])
@@ -504,36 +438,6 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       },
     },
   }
-}
-
-function getValidIdentifierNameInScope(name: string, scope: Scope) {
-  let newName = name
-  let newNameRetry = 0
-  while (scope.hasBinding(newName)) newName = `${name}_${++newNameRetry}`
-  return newName
-}
-
-function getReturns(path: NodePath<t.Function>): NodePath<t.ReturnStatement>[] {
-  const returns = [] as NodePath<t.ReturnStatement>[]
-  path.traverse({
-    Function: p => void p.skip(),
-    ReturnStatement: p => void returns.push(p),
-  })
-  return returns
-}
-
-function replaceWithJSXElement(types: typeof t, path: NodePath, name: string, attributes: t.JSXAttribute[]) {
-  let replaceAt = path
-
-  const parentPath = path.parentPath
-  if (parentPath && parentPath.isJSXExpressionContainer() && !parentPath.parentPath.isJSXAttribute()) replaceAt = parentPath
-
-  const jsxElementPath = replaceAt.replaceWith(types.jsxElement(
-    types.jsxOpeningElement(types.jsxIdentifier(name), attributes, true),
-    null, [], true,
-  ))[0]
-
-  return jsxElementPath
 }
 
 export default plugin

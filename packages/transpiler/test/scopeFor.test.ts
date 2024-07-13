@@ -28,7 +28,7 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { defineScopeComponent, ScopeFor as ScopeFor_1, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeFor as ScopeFor_1, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
         defineScopeVariable(_ctx, {
           items: {
@@ -88,7 +88,7 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { defineScopeComponent, ScopeFor as ScopeFor_1, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeFor as ScopeFor_1, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
         defineScopeVariable(_ctx, {
           items: {

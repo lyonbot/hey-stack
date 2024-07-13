@@ -35,7 +35,7 @@ const Page = scopeComponent(() => {
             value: fetchUser()
           }
         });
-        const Clocalstuff = defineScopeComponent("local stuff", _ctx2 => {
+        const LocalStuff = defineScopeComponent("local stuff", _ctx2 => {
           defineScopeVariable(_ctx2, {
             gifts: {
               value: _ctx.user.gifts
@@ -53,7 +53,7 @@ const Page = scopeComponent(() => {
         });
         return () => <div>
             <div> welcome! dear {_ctx.user.name} </div>
-            <Clocalstuff />
+            <LocalStuff />
           </div>;
       });"
     `)

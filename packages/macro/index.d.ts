@@ -1,17 +1,21 @@
+/* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+
 /**
  * This file provides all "macro" functions for Pseudo JSX code.
  */
 
 // @ts-ignore
 type JSXElement = JSX.Element
-type Component = (props?: any) => JSXElement
+type Component<Props> = (props: Props) => JSXElement
 
 /**
  * define a new scope component
  */
-export function scopeComponent(name: string, fn: () => JSXElement): Component
-export function scopeComponent(fn: () => JSXElement): Component
+export function scopeComponent(name: string, fn: () => JSXElement): Component<{}>
+export function scopeComponent(fn: () => JSXElement): Component<{}>
+export function scopeComponent<Props>(name: string, fn: (props: Props) => JSXElement): Component<Props>
+export function scopeComponent<Props>(fn: (props: Props) => JSXElement): Component<Props>
 
 /**
  * define and render a new scope component (use it in JSX)

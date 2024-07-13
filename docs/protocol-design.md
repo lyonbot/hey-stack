@@ -9,7 +9,7 @@ Given such fragment:
   <!-- `user` is defined in outer scope -->
   <div> welcome! dear {user.name} </div>
 
-  <scope>
+  <scope name="pageContent">
     <scope:var name="items" value="xxxxx" />
     <scope:onMount handler="do something" />
 
@@ -45,7 +45,7 @@ const Page = scopeComponent(() => {
   return (
     <div>
       <div> welcome! dear {user.name} </div>
-      {Scope(() => {
+      {Scope("pageContent", () => {
         const items = scopeVar(xxxxx);
         onMount(() => {
           /* do something */
@@ -103,14 +103,14 @@ const Page = defineScopeComponent((__scopeCtx) => {
 
   return () => (
     <div>
-      {/* `user` got prefixed with `__scopeCtx.` */}
-      <div> welcome! dear {__scopeCtx.user.name} </div>
-      <ChildComponent1 />
+      {/* `user` not prefixed, because it's not from a `scopeVar` */}
+      <div> welcome! dear {user.name} </div>
+      <PageContent />
     </div>
   );
 });
 
-const ChildComponent1 = defineScopeComponent((__scopeCtx) => {
+const PageContent = defineScopeComponent((__scopeCtx) => {
   defineScopeVariable(__scopeCtx, {
     items: { value: xxxxx },
   });

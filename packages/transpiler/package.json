@@ -2,16 +2,20 @@
   "name": "hey-stack-transpiler",
   "version": "0.1.0",
   "type": "module",
-  "main": "lib/index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "prepare": "npm run build",
+    "build": "run-p build:*",
+    "build:tsc": "tsc --noEmit",
+    "build:esbuild": "esbuild --bundle --format=esm --platform=node --target=node14 --outfile=dist/index.js src/index.ts",
     "test": "vitest",
     "play": "ts-node --esm -T test/playground.ts"
   },
   "files": [
-    "lib"
+    "dist"
   ],
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./dist/index.js",
     "./package.json": "./package.json"
   },
   "devDependencies": {
@@ -20,6 +24,7 @@
     "@babel/types": "^7.24.7",
     "@types/babel__core": "^7.20.5",
     "@types/babel__traverse": "^7.20.6",
-    "@types/node": "^20.14.10"
+    "@types/node": "^20.14.10",
+    "esbuild": "^0.21.5"
   }
 }

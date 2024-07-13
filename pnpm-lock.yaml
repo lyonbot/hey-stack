@@ -120,6 +120,9 @@ importers:
       '@types/node':
         specifier: ^20.14.10
         version: 20.14.10
+      esbuild:
+        specifier: ^0.21.5
+        version: 0.21.5
 
 packages:
 

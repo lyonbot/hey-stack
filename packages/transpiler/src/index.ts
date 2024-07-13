@@ -362,6 +362,24 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
             return types.identifier(newId)
           }
         },
+        exit(programPath) {
+          // remove macro import
+          const scope = programPath.scope
+          const macroImports = programPath.get('body').filter(p => p.isImportDeclaration() && p.node.source.value === macroPackageId) as NodePath<t.ImportDeclaration>[]
+          scope.crawl()
+
+          for (const path of macroImports) {
+            // ensure all specifiers are unused
+            const safeToDelete = path.node.specifiers.every((spec) => {
+              if (!types.isImportSpecifier(spec)) return false
+              if (scope.getBinding(spec.local.name)?.referenced) return false
+
+              return true
+            })
+            if (!safeToDelete) throw new Error('macro import is used')
+            path.remove()
+          }
+        },
       },
       CallExpression(path, state) {
         let callee = path.node.callee

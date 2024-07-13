@@ -4,11 +4,13 @@
     "moduleResolution": "node",
     "strict": true,
     "target": "ES2022",
-    "rootDir": "src",
+    "rootDir": ".",
     "allowJs": true,
-    "composite": true
   },
   "include": [
-    "src/**/*.ts",
+    "./**/*.ts",
+  ],
+  "references": [
+    { "path": "../tsconfig.json" }
   ]
 }

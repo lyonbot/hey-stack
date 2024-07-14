@@ -62,8 +62,8 @@ export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkC
 /**
  * A framework-related component to render a list of items.
  */
-export const ScopeFor = defineComponent({
-  name: 'ScopeFor',
+export const ScopeForRenderer = defineComponent({
+  name: 'ScopeForRenderer',
   props: {
     items: { type: Function, required: true },
     as: { type: String, default: '' },

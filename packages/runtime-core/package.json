@@ -4,6 +4,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsc -b",
     "clean": "tsc -b --clean",
     "watch": "tsc -b -w",

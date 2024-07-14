@@ -69,7 +69,7 @@ export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkC
 /**
  * A framework-related component to render a list of items.
  */
-export const ScopeFor = memo(function ScopeFor(props: ScopeForProps) {
+export const ScopeForRenderer = memo(function ScopeForRenderer(props: ScopeForProps) {
   const forceUpdate = useForceUpdate()
   const effectScope = useEffectScope(props, (props) => {
     const relates = getScopeForRelates(props, (p) => {
@@ -93,7 +93,7 @@ export const ScopeFor = memo(function ScopeFor(props: ScopeForProps) {
   const node = effectScope.renderedItems.get()
   return node
 })
-ScopeFor.displayName = 'ScopeFor'
+ScopeForRenderer.displayName = 'ScopeForRenderer'
 
 const ScopeForItem = memo(function ScopeForItem(props: {
   index: any

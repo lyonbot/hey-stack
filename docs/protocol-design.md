@@ -89,12 +89,12 @@ The `ScopeFor(items, itemRenderFn)` renders a list of items.
 
 Then to make it real, we separate `Scope()` blocks into components.
 
-1. extract the fragment of `Scope(...)` and `ScopeFor(...)` to components.
+1. extract the fragment of `scopeComponent(...)`, `Scope(...)` and `ScopeFor(...)` to components.
 2. in the component, find all variables that NOT declared in the component function, then add prefix `_scopeCtx.` to them.
 3. prepend `_scopeCtx = ...` into scope component code.
 
 ```jsx
-import { defineScopeComponent, defineScopeVariable, ScopeFor } from "hay-stack/runtime";
+import { defineScopeComponent, defineScopeVariable, ScopeForRenderer } from "hay-stack/runtime";
 
 // based on "scope", generate lots of components
 
@@ -124,12 +124,12 @@ const PageContent = defineScopeComponent((__scopeCtx) => {
   return () => (
     <>
       <div> we got {__scopeCtx.items.length} items </div>
-      <ScopeFor
+      <ScopeForRenderer
         items={__hoisted_items /* note: is a getter function */}
+        childComponent={ChildComponent2}
         as="item"
         keyAs="index"
         itemsAs="array"
-        childComponent={ChildComponent2}
       />
     </>
   );

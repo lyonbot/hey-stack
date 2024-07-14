@@ -252,7 +252,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       const jsxPath = replaceWithJSXElement(
         types,
         path,
-        state.runtimeImport.getImportedSymbol('ScopeFor', path.scope, isComponentName),
+        state.runtimeImport.getImportedSymbol('ScopeForRenderer', path.scope, isComponentName),
         jsxAttrs,
       )
       jsxPath.visit()

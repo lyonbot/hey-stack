@@ -28,7 +28,7 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { ScopeFor as ScopeFor_1, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeForRenderer, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
         defineScopeVariable(_ctx, {
           items: {
@@ -62,7 +62,7 @@ const Page = scopeComponent(() => {
                 </section>;
           });
         return () => <div>
-            <ScopeFor_1 items={items} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
+            <ScopeForRenderer items={items} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
           </div>;
       });"
     `)
@@ -88,7 +88,7 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { ScopeFor as ScopeFor_1, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeForRenderer, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
         defineScopeVariable(_ctx, {
           items: {
@@ -111,7 +111,7 @@ const Page = scopeComponent(() => {
               </section>;
           });
         return () => <div>
-            <ScopeFor_1 items={items} childComponent={itemRender} as="item" keyAs="index" />
+            <ScopeForRenderer items={items} childComponent={itemRender} as="item" keyAs="index" />
           </div>;
       });"
     `)

@@ -2,7 +2,7 @@
 
 import { transform } from '@babel/core'
 import jsxPlugin from '@babel/plugin-syntax-jsx'
-import fs from 'fs/promises'
+import * as fs from 'fs/promises'
 
 import plugin from '../src/index'
 

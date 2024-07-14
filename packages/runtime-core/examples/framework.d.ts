@@ -10,5 +10,5 @@ declare module 'hey-stack-framework' {
   export type ScopeSetupOptions = ScopeSetupOptionsBase<FrameworkComponent>
 
   export function defineScopeComponent(setupFn: ScopeComponentSetupFn): FrameworkComponent
-  export const ScopeFor: FrameworkComponent<ScopeForProps>
+  export const ScopeForRenderer: FrameworkComponent<ScopeForProps>
 }

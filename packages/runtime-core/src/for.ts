@@ -4,7 +4,7 @@ import { defineScopeVariable, ScopeCtx } from './scope.js'
 import { makeCounter } from './utils.js'
 
 /**
- * The properties for the ScopeFor component.
+ * The properties for the ScopeFor (ScopeForRenderer) component.
  *
  * @internal
  */

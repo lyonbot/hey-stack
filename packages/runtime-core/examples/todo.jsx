@@ -1,4 +1,4 @@
-import { defineScopeComponent, defineScopeVariable, ScopeFor } from "hey-stack-framework";
+import { defineScopeComponent, defineScopeVariable, ScopeForRenderer } from "hey-stack-framework";
 
 export const App = defineScopeComponent((ctx) => {
   defineScopeVariable(ctx, "name", { value: "John" });
@@ -31,7 +31,7 @@ export const App = defineScopeComponent((ctx) => {
       </h1>
 
       <ul>
-        <ScopeFor items={__hoisted_todos} as="todo" keyAs="index" childComponent={TodoItem} />
+        <ScopeForRenderer items={__hoisted_todos} as="todo" keyAs="index" childComponent={TodoItem} />
         <li>
           <button onClick={__hoisted_add_todo}>
             Add todo

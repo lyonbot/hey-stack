@@ -1,4 +1,4 @@
-import { defineScopeComponent, defineScopeVariable, ScopeFor } from "hey-stack-framework";
+import { defineScopeComponent, defineScopeVariable, ScopeForRenderer } from "hey-stack-framework";
 
 export const App = defineScopeComponent((ctx) => {
   defineScopeVariable(ctx, {

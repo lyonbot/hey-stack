@@ -14,9 +14,9 @@ test('basic scopeCtx create / define / dispose', () => {
 
   const ctx1 = createScopeContext(ctx0)
   const subFoo = defineScopeVar(ctx1, 'foo', { inherited: 'foo', exposeAs: 'wheeFoo' })
-  const subBar = defineScopeVar(ctx1, 'bar', { inherited: 'bar', default: 999 })
-  const subBaz = defineScopeVar(ctx1, 'baz', { inherited: 'baz', default: 999 })
-  const subBaz2 = defineScopeVar(ctx1, 'baz2', { inherited: 'baz2', default: 999 })
+  const subBar = defineScopeVar(ctx1, 'bar', { inherited: 'bar', default: () => 999 })
+  const subBaz = defineScopeVar(ctx1, 'baz', { inherited: 'baz', default: () => 999 })
+  const subBaz2 = defineScopeVar(ctx1, 'baz2', { inherited: 'baz2', default: () => 999 })
 
   expect(foo.debug!.inheritedBy.size).eq(1)
   expect(bar.debug!.inheritedBy.size).eq(0)

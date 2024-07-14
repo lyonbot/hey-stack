@@ -33,10 +33,7 @@ interface InheritedScopeVarOptions<T> extends ScopeVarOptionsBase {
   inherited: string | symbol
 
   /** if failed to inherit, use what value. */
-  default?: T
-
-  /** if failed to inherit, use what value. (only works when `default` not provided) */
-  defaultInitializer?: (scope: ScopeCtx) => T
+  default?: () => T
 }
 
 export type ScopeVarOptions<T> = ValueScopeVarOptions<T> | ComputedScopeVarOptions<T> | InheritedScopeVarOptions<T>
@@ -122,17 +119,22 @@ export function defineScopeVar<T = any>(
 
       if (isDevelopmentMode && inheritedScopeVar) {
         // the inheriting var is removed from parent scope?
-        console.warn(`[hey-stack] deleting variable "${String(inheritedScopeVar.debug!.name)}" that inherited by descendant: `, scope, name)
+        console.warn(`[hey-stack] deleting variable `, name, ` is inherited by descendants. `, scope)
         inheritedScopeVar.debug!.inheritedBy.delete(scopeVar)
         inheritedScopeVar = undefined
       }
 
-      return computed(() => {
-        let val = options.default
-        if (val === undefined && typeof options.defaultInitializer === 'function') {
-          val = options.defaultInitializer(scope)
-        }
-        return val
+      return computed({
+        get: () => {
+          let val: any
+          if (typeof options.default === 'function') val = options.default()
+          return val
+        },
+        set: () => {
+          if (isDevelopmentMode) {
+            console.warn(`[hey-stack] setting variable `, name, ` fails because it's a default value, not inherited. `, scope)
+          }
+        },
       })
     })
 
@@ -179,7 +181,7 @@ export function defineScopeVar<T = any>(
 
   const prevScopeVar = scope.vars[name]
   if (prevScopeVar) {
-    // redeclaring variable in scope! dangerous!
+    // redeclare variable in scope! dangerous!
 
     // the `exposeAs` changed
     const prevExposeAs = prevScopeVar.exposeAs

@@ -28,41 +28,40 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { ScopeForRenderer, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeForRenderer, defineScopeComponent, defineScopeVar } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
-        defineScopeVariable(_ctx, {
-          items: {
-            get: () => globalThis.getItems()
-          }
+        const items = defineScopeVar(_ctx, "items", {
+          get: () => globalThis.getItems()
         });
-        const items = () => _ctx.items,
+        const items_1 = () => items.value,
           itemRender = defineScopeComponent(_ctx2 => {
-            defineScopeVariable(_ctx2, {
-              items2: {}
+            const items = defineScopeVar(_ctx2, "items", {
+              inherited: "items"
             });
-            defineScopeVariable(_ctx2, {
-              index: {}
+            let items2 = defineScopeVar(_ctx2, "items2", {
+              inherited: "items2"
             });
-            defineScopeVariable(_ctx2, {
-              item: {}
+            let index = defineScopeVar(_ctx2, "index", {
+              inherited: "index"
             });
-            defineScopeVariable(_ctx2, {
-              hash: {
-                get: () => objectHash(_ctx2.item),
-                private: true
-              }
+            let item = defineScopeVar(_ctx2, "item", {
+              inherited: "item"
+            });
+            const hash = defineScopeVar(_ctx2, "hash", {
+              get: () => objectHash(item.value),
+              private: true
             });
             return () => <section>
-                  <div> {_ctx2.index} of {_ctx.items.length} </div>
-                  <div> {_ctx2.index} of {_ctx2.items2.length} </div>
+                  <div> {index.value} of {items.value.length} </div>
+                  <div> {index.value} of {items2.value.length} </div>
 
-                  <div> {_ctx2.item.name} </div>
-                  <div> {_ctx2.item.age} </div>
-                  <div> {_ctx2.hash} </div>
+                  <div> {item.value.name} </div>
+                  <div> {item.value.age} </div>
+                  <div> {hash.value} </div>
                 </section>;
           });
         return () => <div>
-            <ScopeForRenderer items={items} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
+            <ScopeForRenderer items={items_1} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
           </div>;
       });"
     `)
@@ -88,30 +87,31 @@ const Page = scopeComponent(() => {
   );
 });
     `).code).toMatchInlineSnapshot(`
-      "import { ScopeForRenderer, defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
+      "import { ScopeForRenderer, defineScopeComponent, defineScopeVar } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
-        defineScopeVariable(_ctx, {
-          items: {
-            get: () => globalThis.getItems()
-          }
+        const items = defineScopeVar(_ctx, "items", {
+          get: () => globalThis.getItems()
         });
-        const items = () => _ctx.items,
+        const items_1 = () => items.value,
           itemRender = defineScopeComponent(_ctx2 => {
-            defineScopeVariable(_ctx2, {
-              index: {}
+            const items = defineScopeVar(_ctx2, "items", {
+              inherited: "items"
             });
-            defineScopeVariable(_ctx2, {
-              item: {}
+            let index = defineScopeVar(_ctx2, "index", {
+              inherited: "index"
+            });
+            let item = defineScopeVar(_ctx2, "item", {
+              inherited: "item"
             });
             return () => <section>
-                <div> {_ctx2.index} of {_ctx.items.length} </div>
+                <div> {index.value} of {items.value.length} </div>
                 {/* <div> {index} of {items2.length} </div> */}
-                <div> {_ctx2.item.name} </div>
-                <div> {_ctx2.item.age} </div>
+                <div> {item.value.name} </div>
+                <div> {item.value.age} </div>
               </section>;
           });
         return () => <div>
-            <ScopeForRenderer items={items} childComponent={itemRender} as="item" keyAs="index" />
+            <ScopeForRenderer items={items_1} childComponent={itemRender} as="item" keyAs="index" />
           </div>;
       });"
     `)

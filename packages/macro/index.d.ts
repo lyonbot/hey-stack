@@ -27,13 +27,16 @@ interface ScopeVar {
   <T>(value: T): T
   private: ScopeVar
 
-  computed: ComputedScopeVar
-  inherited: <T = any>() => T
-}
+  /** a computed variable, optionally with setter */
+  computed<T>(value: T, setter?: (value: T) => void): T
 
-interface ComputedScopeVar {
-  <T>(value: T, setter?: (value: T) => void): T
-  private: ComputedScopeVar
+  /**
+   * inherit from parent scope.
+   *
+   * @param parentExposedName - by default using same name as variable's to seek
+   * @param defaultValue - value if failed to inherit. this will NOT evaluated if successfully inherited.
+   */
+  inherited<T = any>(parentExposedName?: string | null | undefined, defaultValue?: T): T
 }
 
 /**

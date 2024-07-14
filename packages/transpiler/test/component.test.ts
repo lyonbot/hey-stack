@@ -28,31 +28,28 @@ const Page = scopeComponent(() => {
 });
 
     `).code).toMatchInlineSnapshot(`
-      "import { defineScopeComponent, defineScopeVariable } from "hey-stack-runtime";
+      "import { defineScopeComponent, defineScopeVar } from "hey-stack-runtime";
       const Page = defineScopeComponent(_ctx => {
-        defineScopeVariable(_ctx, {
-          user: {
-            value: fetchUser()
-          }
+        const user = defineScopeVar(_ctx, "user", {
+          value: fetchUser()
         });
         const LocalStuff = defineScopeComponent("local stuff", _ctx2 => {
-          defineScopeVariable(_ctx2, {
-            gifts: {
-              value: _ctx.user.gifts
-            }
+          const user = defineScopeVar(_ctx2, "user", {
+            inherited: "user"
           });
-          defineScopeVariable(_ctx2, {
-            totalPrice: {
-              get: () => _ctx2.gifts.reduce((acc, item) => acc + item.price, 0)
-            }
+          const gifts = defineScopeVar(_ctx2, "gifts", {
+            value: user.value.gifts
+          });
+          const totalPrice = defineScopeVar(_ctx2, "totalPrice", {
+            get: () => gifts.value.reduce((acc, item) => acc + item.price, 0)
           });
           return () => <>
-                  <div> we got {_ctx2.gifts.length} gifts </div>
-                  <div> total price is {_ctx2.totalPrice} </div>
+                  <div> we got {gifts.value.length} gifts </div>
+                  <div> total price is {totalPrice.value} </div>
                 </>;
         });
         return () => <div>
-            <div> welcome! dear {_ctx.user.name} </div>
+            <div> welcome! dear {user.value.name} </div>
             <LocalStuff />
           </div>;
       });"

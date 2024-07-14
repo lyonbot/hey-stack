@@ -19,6 +19,7 @@ const macroPackageId = 'hey-stack-macro'
 const runtimePackageId = 'hey-stack-runtime'
 
 interface ScopeSetupFnState {
+  processed?: boolean
   definePath: NodePath<t.CallExpression> // the `defineScopeComponent(...)` call
   path: NodePath<t.Function>
   vars: Record<string, {
@@ -31,6 +32,12 @@ interface ScopeSetupFnState {
     name: string
     onHoist?: (name: string, stubPath: NodePath<t.Identifier>, declarator: NodePath<t.VariableDeclarator>) => void
   }[]
+
+  /** managed by parent setupFn. when ancestor find a variable is used in sub scope, the ancestor shall update descendant's code by adding `defineScopeVar` */
+  inheritedScopeVar?: {
+    declaration: NodePath<t.VariableDeclaration>
+    added: Set<string>
+  }
 }
 const $scopeSetupFn = Symbol('isScopeSetupFn')
 
@@ -114,7 +121,24 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       const optionsObjectProperties = [] as t.ObjectProperty[]
 
       if (decorators.inherited) {
-        if (args.length > 0) throw new Error('scopeVar.inherited() cannot have an expression inside')
+        let arg0 = args[0]
+        const arg1 = args[1]
+
+        if (!arg0 || types.isNullLiteral(arg0) || types.isIdentifier(arg0, { name: 'undefined' })) arg0 = types.stringLiteral(name)
+        if (!types.isStringLiteral(arg0)) throw new Error('scopeVar.inherited() must have a string literal as argument')
+        optionsObjectProperties.push(types.objectProperty(types.identifier('inherited'), arg0))
+
+        if (arg1) {
+          // default value
+          optionsObjectProperties.push(
+            types.objectProperty(
+              types.identifier('default'),
+              types.arrowFunctionExpression([], arg1),
+            ),
+          )
+        }
+
+        if (args.length > 2) throw new Error('scopeVar.inherited() accepts up to 2 arguments')
       }
       else if (decorators.computed) {
         if (!args[0]) throw new Error('scopeVar.computed() must have an expression inside')
@@ -325,8 +349,8 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         exit(path, globalState) {
           const state = globalState[$pluginState]
           const setupFn = path.getData($scopeSetupFn) as ScopeSetupFnState
-          if (!setupFn) return
-          path.setData($scopeSetupFn, undefined) // transformed, kill the state
+          if (!setupFn || setupFn.processed) return
+          setupFn.processed = true
 
           // turn `scopeComponent()` into `defineScopeComponent()`
           setupFn.definePath.set('callee', types.identifier(
@@ -340,46 +364,82 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
             // eslint-disable-next-line @typescript-eslint/prefer-for-of
             for (let i = 0; i < vars.length; i++) {
               const [name, { options, declarator }] = vars[i]
-              const declaration = declarator.parentPath
-              if (!declaration.isVariableDeclaration()) throw new Error('weird error occurred')
+              const scope = declarator.scope
 
-              const scope = declaration.scope
-
-              // 1. if has other declarator before, split the declaration into two declarations
-              const declarators = declaration.node.declarations
-              const declIdx = declarators.indexOf(declarator.node)
-              if (declIdx > 0) {
-                const decl2 = types.variableDeclaration(declaration.node.kind, declarators.slice(0, declIdx))
-                declaration.insertBefore(decl2)
-              }
-
-              const defineOptions = types.objectExpression([
-                types.objectProperty(types.identifier(name), options),
-              ])
-              scope.getBinding(name)?.referencePaths?.forEach((referencePath) => {
-                referencePath.replaceWith(types.memberExpression(
-                  types.identifier(setupFn.ctxParamName),
-                  types.identifier(name),
-                ))
-              })
-
-              // insert `defineScopeVariable` call
-              declaration.insertBefore(
-                types.expressionStatement(
-                  types.callExpression(
-                    types.identifier(state.runtimeImport.getImportedSymbol('defineScopeVariable', path.scope)),
-                    [
-                      types.identifier(setupFn.ctxParamName),
-                      defineOptions,
-                    ],
-                  ),
+              // make `defineScopeVar(ctx, "name", options)` call
+              declarator.set(
+                'init',
+                types.callExpression(
+                  types.identifier(state.runtimeImport.getImportedSymbol('defineScopeVar', path.scope)),
+                  [
+                    types.identifier(setupFn.ctxParamName),
+                    types.stringLiteral(name),
+                    options,
+                  ],
                 ),
               )
 
-              // remove declarators
-              declarators.splice(0, declIdx + 1)
-              if (!declarators.length) declaration.remove()
-              scope.crawl()
+              // foo => foo.value
+              scope.getBinding(name)?.referencePaths?.forEach((referencePath) => {
+                let subSetupFnPath: NodePath | null = referencePath
+                let subSetupFn: ScopeSetupFnState | undefined
+                while (
+                  (subSetupFnPath = subSetupFnPath.findParent(p => p.isFunction() && (subSetupFn = p.getData($scopeSetupFn))))
+                  && subSetupFnPath && subSetupFn
+                  && subSetupFn !== setupFn // not in the same scope
+                ) {
+                  // this was a reference in a sub scope component.
+                  // maybe we shall add `defineScopeVar` into the sub scope component
+
+                  if (!subSetupFn.inheritedScopeVar) {
+                    let body = subSetupFn.path.get('body')
+                    if (!body.isBlockStatement()) {
+                      // wtf? arrow function?
+                      body = body.replaceWith(types.blockStatement([
+                        types.returnStatement(body.node as t.Expression),
+                      ]))[0]
+                    }
+
+                    const declaration = (body as NodePath<t.BlockStatement>).unshiftContainer(
+                      'body',
+                      types.variableDeclaration('const', []),
+                    )[0]
+
+                    subSetupFn.inheritedScopeVar = {
+                      declaration,
+                      added: new Set(),
+                    }
+                  }
+
+                  if (!subSetupFn.inheritedScopeVar.added.has(name)) {
+                    subSetupFn.inheritedScopeVar.added.add(name)
+                    subSetupFn.inheritedScopeVar.declaration.node.declarations.push(
+                      types.variableDeclarator(
+                        types.identifier(name),
+                        types.callExpression(
+                          types.identifier(state.runtimeImport.getImportedSymbol('defineScopeVar', path.scope)),
+                          [
+                            types.identifier(subSetupFn.ctxParamName),
+                            types.stringLiteral(name),
+                            types.objectExpression([
+                              types.objectProperty(types.identifier('inherited'), types.stringLiteral(name)),
+                            ]),
+                          ],
+                        ),
+                      ),
+                    )
+                  }
+
+                  // NOTE: because `inherit` can cross layers, it's not necessary to add `defineScopeVar` into each middle layer.
+                  // but later if passed with `props`, this line shall be removed:
+                  break
+                }
+
+                referencePath.replaceWith(types.memberExpression(
+                  types.identifier(name),
+                  types.identifier('value'),
+                ))
+              })
             }
           }
 

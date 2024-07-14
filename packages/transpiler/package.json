@@ -9,7 +9,7 @@
     "build:tsc": "tsc --noEmit",
     "build:esbuild": "esbuild --bundle --format=esm --platform=node --target=node14 --outfile=dist/index.js src/index.ts",
     "test": "vitest",
-    "play": "ts-node --esm -T test/playground.ts"
+    "play": "cd test && tsx playground.ts"
   },
   "files": [
     "dist"

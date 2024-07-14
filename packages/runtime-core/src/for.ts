@@ -1,6 +1,7 @@
 import { computed, toRaw } from '@vue/reactivity'
 
-import { defineScopeVariable, ScopeCtx } from './scope.js'
+import { ScopeCtx } from './scope.js'
+import { defineScopeVar } from './scopeVar.js'
 import { makeCounter } from './utils.js'
 
 /**
@@ -92,7 +93,7 @@ export function getScopeForRelates<RFI extends (props: {
     const { as: itemAs, itemsAs, keyAs } = props
 
     return (scopeCtx: ScopeCtx, data: { items: any, index: any }) => {
-      if (itemAs) defineScopeVariable(scopeCtx, itemAs, {
+      if (itemAs) defineScopeVar(scopeCtx, itemAs, {
         get: () => data.items[data.index],
         set(value) {
           if (data.items === emptyObject) return
@@ -100,11 +101,11 @@ export function getScopeForRelates<RFI extends (props: {
         },
       })
 
-      if (keyAs) defineScopeVariable(scopeCtx, keyAs, {
+      if (keyAs) defineScopeVar(scopeCtx, keyAs, {
         get: () => data.index,
       })
 
-      if (itemsAs) defineScopeVariable(scopeCtx, itemsAs, {
+      if (itemsAs) defineScopeVar(scopeCtx, itemsAs, {
         get: () => data.items,
       })
     }

@@ -29,14 +29,14 @@ hey-stack' development can be based on other framework:
 
     ```jsx
     const Page = defineScopeComponent((__scopeCtx) => {
-      defineScopeVariable(__scopeCtx, "hash", {
+      const hash = defineScopeVar(__scopeCtx, "hash", {
         private: true,
         get: () => objectHash(__scopeCtx.item),
       });
 
       return () => (
         <div>
-          <div>item hash is {__scopeCtx.hash}</div>
+          <div>item hash is {hash.value}</div>
 
           {/* ChildComponent1 cannot access __scopeCtx.hash, 
               because it is private and limited to this scope */}
@@ -46,7 +46,7 @@ hey-stack' development can be based on other framework:
     });
     ```
 
-- `defineScopeVariable(scopeCtx, name, options)`
+- `defineScopeVar(scopeCtx, name, options)`
 
   define a variable inside scope
 
@@ -56,19 +56,17 @@ hey-stack' development can be based on other framework:
 
   - `options` is an object that can contain:
 
-    - `value`: initial value. can't be used in junction with `get` or `set`
+    - `value`: [1] initial value. can't be used in junction with `get` or `set`
 
-    - `get`: getter function
+    - `get`: [2] getter function
 
-    - `set`: setter function
+    - `set`: [2] setter function
+
+    - `inherited`: [3] name of the variable to inherit from outer scope
 
     - `private`: if true, variable cannot be inherited
 
     - `exposeAs`: string or symbol, change the name for sub-scopes. can't be used in junction with `private`
-
-- `defineScopeVariable(scopeCtx, optionsMap)`
-
-  define multiple variables at once. the `optionsMap` is something like `{ name1: options1, name2: options2, ... }`
 
 ### Components
 
@@ -88,8 +86,9 @@ hey-stack' development can be based on other framework:
 
     - `childComponent`: a component made by `defineScopeComponent()`
 
-## CodeGen: SWC plugin to convert pseudo code
+##  Transpiler
 
-- separate `Scope()` and `ScopeFor()` into components
-- also works with `scopeComponent()`
-- Detect "global" variable and add prefix
+- find all setupFn declared in `scopeComponent()`, `Scope()` and `ScopeFor()`
+- find all `scopeVar` declarations and gather infos into the setupFn
+- add suffix `.value` to all scopeVar references
+- hoist sub-components' declaration, including regular scopeComponent and item-renderer of ScopeFor

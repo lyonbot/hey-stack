@@ -22,7 +22,7 @@ export type ScopeComponentSetupFn = (scopeCtx: ScopeCtx) => MaybePromise<() => J
  *
  * @example
  * const Page = defineScopeComponent((__scopeCtx) => {
- *   defineScopeVariable(__scopeCtx, "hash", {
+ *   defineScopeVar(__scopeCtx, "hash", {
  *     private: true,
  *     get: () => objectHash(__scopeCtx.item),
  *   });

@@ -1,4 +1,6 @@
 export type { ScopeForPropsBase } from './for.js'
 export { getScopeForRelates, RenderKeyStrategy } from './for.js'
-export type { ScopeCtx, ScopeSetupOptionsBase, ScopeVariableDebugInfo, ScopeVariableOptions } from './scope.js'
-export { $scopeCtxVariableManager, createScopeContext, defineScopeVariable, disposeScopeContext } from './scope.js'
+export type { ScopeCtx, ScopeSetupOptionsBase } from './scope.js'
+export { createScopeContext, disposeScopeContext } from './scope.js'
+export type { ScopeVar, ScopeVarDebugInfo, ScopeVarOptions } from './scopeVar.js'
+export { defineScopeVar } from './scopeVar.js'

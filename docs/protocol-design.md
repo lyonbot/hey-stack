@@ -90,11 +90,10 @@ The `ScopeFor(items, itemRenderFn)` renders a list of items.
 Then to make it real, we separate `Scope()` blocks into components.
 
 1. extract the fragment of `scopeComponent(...)`, `Scope(...)` and `ScopeFor(...)` to components.
-2. in the component, find all variables that NOT declared in the component function, then add prefix `_scopeCtx.` to them.
-3. prepend `_scopeCtx = ...` into scope component code.
+2. in the component, find all variables that marked with `scopeVar`, turn them into `ScopeVarRef` with `defineScopeVar`, and change all references adding suffix `.value`.
 
 ```jsx
-import { defineScopeComponent, defineScopeVariable, ScopeForRenderer } from "hay-stack/runtime";
+import { defineScopeComponent, defineScopeVar, ScopeForRenderer } from "hay-stack/runtime";
 
 // based on "scope", generate lots of components
 
@@ -111,19 +110,17 @@ const Page = defineScopeComponent((__scopeCtx) => {
 });
 
 const PageContent = defineScopeComponent((__scopeCtx) => {
-  defineScopeVariable(__scopeCtx, {
-    items: { value: xxxxx },
-  });
+  const items = defineScopeVar(__scopeCtx, 'items', { value: xxxxx });
   onMount(() => {
     /* do something */
   });
 
   // TODO: maybe `items` is async, and can block this component's first rendering
 
-  const __hoisted_items = () => __scopeCtx.items; // improve performance. not required. just for React from unnecessary re-renders, not required.
+  const __hoisted_items = () => items.value; // improve performance. not required. just for React from unnecessary re-renders, not required.
   return () => (
     <>
-      <div> we got {__scopeCtx.items.length} items </div>
+      <div> we got {items.value.length} items </div>
       <ScopeForRenderer
         items={__hoisted_items /* note: is a getter function */}
         childComponent={ChildComponent2}
@@ -136,18 +133,19 @@ const PageContent = defineScopeComponent((__scopeCtx) => {
 });
 
 const ChildComponent2 = defineScopeComponent((__scopeCtx) => {
-  defineScopeVariable(__scopeCtx, {
-    hash: {
-      private: true,
-      get: () => objectHash(__scopeCtx.item),
-    },
+  const item = defineScopeVar(__scopeCtx, 'item', { 
+    inherited: 'item',
+  });
+  const hash = defineScopeVar(__scopeCtx, 'hash', {
+    private: true,
+    get: () => objectHash(item.value),
   });
 
   return () => (
     <section>
-      <div> {__scopeCtx.item.name} </div>
-      <div> {__scopeCtx.item.age} </div>
-      <div> {__scopeCtx.hash} </div>
+      <div> {item.value.name} </div>
+      <div> {item.value.age} </div>
+      <div> {hash.value} </div>
     </section>
   );
 });
@@ -191,6 +189,8 @@ To make refactoring and modularizing easier, we need an editor extension to:
 You can extract a part of JSX into a new component. See example of `ExtractedComponent1` below:
 
 ```tsx
+// NOTE: this is pseudo JSX code, can not directly run
+
 const OriginalPage = scopeComponent(() => {
   const items = await fetchItems();
   const user = xxxxxx;

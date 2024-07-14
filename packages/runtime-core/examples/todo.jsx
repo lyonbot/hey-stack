@@ -1,29 +1,29 @@
-import { defineScopeComponent, defineScopeVariable, ScopeForRenderer } from "hey-stack-framework";
+import { defineScopeComponent, defineScopeVar, ScopeForRenderer } from "hey-stack-framework";
 
 export const App = defineScopeComponent((ctx) => {
-  defineScopeVariable(ctx, "name", { value: "John" });
-  defineScopeVariable(ctx, "todos", {
+  const name = defineScopeVar(ctx, "name", { value: "John" });
+  const todos = defineScopeVar(ctx, "todos", {
     value: [
       { id: 1, text: "Buy milk" },
       { id: 2, text: "Buy bread" },
     ],
   });
-  defineScopeVariable(ctx, "summary", {
+  const summary = defineScopeVar(ctx, "summary", {
     get: () => {
-      return ctx.todos.map((todo) => todo.text).join(", ") || "No todos";
+      return todos.value.map((todo) => todo.text).join(", ") || "No todos";
     },
   });
 
-  const __hoisted_todos = () => ctx.todos; // this prevents React from unnecessary re-renders
-  const __hoisted_add_todo = () => ctx.todos.push({ id: (ctx.todos.at(-1)?.id ?? -1) + 1, text: "New todo" });
+  const __hoisted_todos = () => todos.value; // this prevents React from unnecessary re-renders
+  const __hoisted_add_todo = () => todos.value.push({ id: (todos.value.at(-1)?.id ?? -1) + 1, text: "New todo" });
 
   return () => (
     <div>
       <h1>
-        {`TODOs for ${ctx.name}!`}
+        {`TODOs for ${name.value}!`}
         <button
           onClick={() => {
-            ctx.name = "USER_" + Math.random().toString(36).slice(-6);
+            name.value = "USER_" + Math.random().toString(36).slice(-6);
           }}
         >
           Change User Name
@@ -33,9 +33,7 @@ export const App = defineScopeComponent((ctx) => {
       <ul>
         <ScopeForRenderer items={__hoisted_todos} as="todo" keyAs="index" childComponent={TodoItem} />
         <li>
-          <button onClick={__hoisted_add_todo}>
-            Add todo
-          </button>
+          <button onClick={__hoisted_add_todo}>Add todo</button>
         </li>
       </ul>
 
@@ -44,18 +42,22 @@ export const App = defineScopeComponent((ctx) => {
   );
 });
 const Summary = defineScopeComponent((ctx) => {
+  const summary = defineScopeVar(ctx, "summary", { inherited: "summary" });
   return () => (
     <div>
-      <p>{ctx.summary}</p>
+      <p>{summary.value}</p>
     </div>
   );
 });
 const TodoItem = defineScopeComponent((ctx) => {
+  const todo = defineScopeVar(ctx, "todo", { inherited: "todo" });
+  const index = defineScopeVar(ctx, "index", { inherited: "index" });
+  const todos = defineScopeVar(ctx, "todos", { inherited: "todos" });
   return () => (
     <li>
-      {ctx.todo.id}
-      <input value={ctx.todo.text} onChange={(e) => (ctx.todo.text = e.target.value)} />
-      <button onClick={() => ctx.todos.splice(ctx.index, 1)}>Remove</button>
+      {todo.value.id}
+      <input value={todo.value.text} onChange={(e) => (todo.value.text = e.target.value)} />
+      <button onClick={() => todos.value.splice(index.value, 1)}>Remove</button>
     </li>
   );
 });

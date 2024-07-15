@@ -79,6 +79,19 @@ The `foo = scopeVar.computed(expression)` marks the variable as computed, it wil
 
 You can still use Vue's original `computed` like `foo = computed(() => expression)`, but to take the value, you need to use `foo.value` instead of `foo`, which may be inconvenient.
 
+#### Note of "inherited"
+
+The `foo = scopeVar.inherited()` marks the variable is inherited from outer scope. It supports two forms:
+
+- `foo = scopeVar.inherited(var_in_outer_scope)` -- preferred for nested-declared components
+- `foo = scopeVar.inherited("var_name_in_outer_scope")`
+
+It has optional 2nd parameter `defaultValue`, which will be used if `var_in_outer_scope` is not found. (by default an error will be thrown)
+
+- `foo = scopeVar.inherited("var_name_in_outer_scope", { foobar: 123 })`
+
+Writing value to `foo` will affect `var_in_outer_scope` and all other descendant components who inherited it.
+
 #### Note of list rendering
 
 The `ScopeFor(items, itemRenderFn)` renders a list of items.

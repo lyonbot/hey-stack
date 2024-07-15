@@ -35,8 +35,29 @@ interface ScopeVar {
    *
    * @param parentExposedName - by default using same name as variable's to seek
    * @param defaultValue - value if failed to inherit. this will NOT evaluated if successfully inherited.
+   *
+   * @example
+   * ```jsx
+   * const Page = scopeComponent(async () => {
+   *   const gifts = scopeVar(await fetchGifts());
+   *   return (
+   *     <div>
+   *       <div> we got {gifts.length} gifts </div>
+   *       {Scope("pageContent", () => {
+   *         // `items` is identical to outer `gifts`, readable and writable
+   *         //                      👇
+   *         const items = scopeVar.inherited(gifts);
+   *         return (
+   *           <div> we got {items.length} items </div>
+   *         );
+   *       })}
+   *     </div>
+   *   );
+   * });
+   * ```
    */
   inherited<T = any>(parentExposedName?: string | null | undefined, defaultValue?: T): T
+  inherited<T = any>(parentExposedVar: T, defaultValue?: T): T
 }
 
 /**

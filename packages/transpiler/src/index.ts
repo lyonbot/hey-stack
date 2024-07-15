@@ -54,8 +54,8 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       // scopeComponent(setupFn)
 
       const setupFn = path.get('arguments')[1] || path.get('arguments')[0]
-      if (!setupFn.isFunction()) throw new Error('scope() must be used with a function')
-      if (setupFn.node.params.length > 0) throw new Error('scope() setupFn cannot have parameters')
+      if (!setupFn.isFunction()) throw path.buildCodeFrameError('scope() must be used with a function')
+      if (setupFn.node.params.length > 0) throw path.buildCodeFrameError('scope() setupFn cannot have parameters')
 
       const ctxParam = path.scope.generateUidIdentifier('ctx')
       const setupFnState: ScopeSetupFnState = {
@@ -89,17 +89,17 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
       const setupFn = path.getFunctionParent()
       const setupFnState = setupFn && setupFn.getData($scopeSetupFn) as ScopeSetupFnState
-      if (!setupFnState) throw new Error('scopeVar must be used in scope()')
+      if (!setupFnState) throw path.buildCodeFrameError('scopeVar must be used in scope()')
 
       const declarator = path.parentPath
-      if (!declarator.isVariableDeclarator()) throw new Error('scopeVar must be used in variable declarator')
+      if (!declarator.isVariableDeclarator()) throw path.buildCodeFrameError('scopeVar must be used in variable declarator')
 
       const id = declarator.node.id
-      if (!types.isIdentifier(id)) throw new Error('scopeVar declaration cannot be destructured')
+      if (!types.isIdentifier(id)) throw path.buildCodeFrameError('scopeVar declaration cannot be destructured')
 
       // register to `defineScopeVariable`
       const name = id.name
-      if (setupFnState.vars[name]) throw new Error(`scopeVar name already used: ${name}`)
+      if (setupFnState.vars[name]) throw path.buildCodeFrameError(`scopeVar name already used: ${name}`)
 
       // find all decorators like "computed", "inherited" etc.
       const decorators = {} as Record<string, t.Expression | true>
@@ -107,7 +107,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         let m = path.node.callee
         while (types.isMemberExpression(m)) {
           const property = m.property
-          if (!types.isIdentifier(property)) throw new Error('scopeVar.xxx only accepts literal, not dynamic')
+          if (!types.isIdentifier(property)) throw path.buildCodeFrameError('scopeVar.xxx only accepts literal, not dynamic')
 
           decorators[property.name] = true
           m = m.object
@@ -116,47 +116,47 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
       // if provide function1, ensure it is a expression
       const args = path.node.arguments as t.Expression[]
-      if (args.some(n => !types.isExpression(n))) throw new Error('scopeVar() only accepts expression params, do not use rest spreading')
+      if (args.some(n => !types.isExpression(n))) throw path.buildCodeFrameError('scopeVar() only accepts expression params, do not use rest spreading')
 
       const optionsObjectProperties = [] as t.ObjectProperty[]
+      const addOption = (name: string, value: t.Expression) => {
+        optionsObjectProperties.push(types.objectProperty(types.identifier(name), value))
+      }
 
       if (decorators.inherited) {
         let arg0 = args[0]
         const arg1 = args[1]
 
-        if (!arg0 || types.isNullLiteral(arg0) || types.isIdentifier(arg0, { name: 'undefined' })) arg0 = types.stringLiteral(name)
-        if (!types.isStringLiteral(arg0)) throw new Error('scopeVar.inherited() must have a string literal as argument')
-        optionsObjectProperties.push(types.objectProperty(types.identifier('inherited'), arg0))
+        if (!arg0 || types.isNullLiteral(arg0)) arg0 = types.stringLiteral(name)
+        if (types.isIdentifier(arg0)) arg0 = types.stringLiteral(arg0.name === 'undefined' ? name : arg0.name)
+        if (!types.isStringLiteral(arg0)) throw path.buildCodeFrameError('bad 1st param of scopeVar.inherited(): must be a identifier or have a string literal as argument')
+
+        addOption('inherited', arg0)
 
         if (arg1) {
           // default value
-          optionsObjectProperties.push(
-            types.objectProperty(
-              types.identifier('default'),
-              types.arrowFunctionExpression([], arg1),
-            ),
-          )
+          addOption('default', types.arrowFunctionExpression([], arg1))
         }
 
-        if (args.length > 2) throw new Error('scopeVar.inherited() accepts up to 2 arguments')
+        if (args.length > 2) throw path.buildCodeFrameError('scopeVar.inherited() accepts up to 2 arguments')
       }
       else if (decorators.computed) {
-        if (!args[0]) throw new Error('scopeVar.computed() must have an expression inside')
-        optionsObjectProperties.push(types.objectProperty(types.identifier('get'), types.arrowFunctionExpression([], args[0])))
+        if (!args[0]) throw path.buildCodeFrameError('scopeVar.computed() must have an expression inside')
+        addOption('get', types.arrowFunctionExpression([], args[0]))
 
         if (args.length >= 2) {
           // has setter
-          optionsObjectProperties.push(types.objectProperty(types.identifier('set'), args[1]))
+          addOption('set', args[1])
         }
       }
       else {
-        if (!args[0]) throw new Error('scopeVar() must have an expression inside')
-        optionsObjectProperties.push(types.objectProperty(types.identifier('value'), args[0]))
+        if (!args[0]) throw path.buildCodeFrameError('scopeVar() must have an expression inside')
+        addOption('value', args[0])
       }
 
       // other common decorators
       if (decorators.private) {
-        optionsObjectProperties.push(types.objectProperty(types.identifier('private'), types.booleanLiteral(true)))
+        addOption('private', types.booleanLiteral(true))
       }
 
       setupFnState.vars[name] = {
@@ -166,9 +166,10 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
     },
     Scope(path) {
       // turn `Scope(() => ...)` into `<NewComponent1234>` and a new `scopeComponent()`
+      // no code modified here
 
       const setupFnPath = path.findParent(p => p.isFunction() && p.getData($scopeSetupFn)) as NodePath<t.Function>
-      if (!setupFnPath) throw new Error('Scope() must be used in a scopeComponent(), Scope() or ScopeFor()')
+      if (!setupFnPath) throw path.buildCodeFrameError('Scope() must be used in a scopeComponent(), Scope() or ScopeFor()')
 
       // reuse `scopeComponent()` logic
       const { name } = macroHandler.scopeComponent(path)
@@ -189,10 +190,11 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
     },
     ScopeFor(path, state) {
       // turn `ScopeFor(items, (item, key, items) => ...)` into `<ScopeFor>` and a new `scopeComponent()`
+      // Will modify the code
 
       const [arg1, arg2] = path.get('arguments')
-      if (!arg1 || !arg1.isExpression()) throw new Error('ScopeFor must have an argument')
-      if (!arg2 || !(arg2.isArrowFunctionExpression() || arg2.isFunctionExpression())) throw new Error('ScopeFor must have a childComponent')
+      if (!arg1 || !arg1.isExpression()) throw path.buildCodeFrameError('ScopeFor must have an argument')
+      if (!arg2 || !(arg2.isArrowFunctionExpression() || arg2.isFunctionExpression())) throw path.buildCodeFrameError('ScopeFor must have a childComponent')
 
       // turn 2nd argument into another `scope()` declaration
 
@@ -234,7 +236,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
         function transformParam(param: NodePath<t.Node> | undefined, jsxAttrName: string) {
           if (!param) return
-          if (!param.isIdentifier()) throw new Error('render function of ScopeFor not support destructuring param yet')
+          if (!param.isIdentifier()) throw param.buildCodeFrameError('render function of ScopeFor not support destructuring param yet')
 
           const name = param.node.name
           const references = param.scope.getBinding(name)?.referencePaths
@@ -306,6 +308,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
     visitor: {
       Program: {
         enter(path, globalState) {
+          // initialize plugin state
           globalState[$pluginState] = {
             macroImport: getImportingManager(types, path, macroPackageId),
             runtimeImport: getImportingManager(types, path, runtimePackageId),
@@ -327,12 +330,15 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
               return true
             })
-            if (!safeToDelete) throw new Error('macro import is used')
+            if (!safeToDelete) throw path.buildCodeFrameError('macro import is used')
             path.remove()
           }
         },
       },
       CallExpression(path, globalState) {
+        // check if this is a macro call
+        // if yes, call the macro handler
+
         const state = globalState[$pluginState]
 
         let callee = path.node.callee
@@ -445,16 +451,17 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
           function transformReturn() {
             const returns = getReturns(path)
-            if (!returns.length) throw new Error('scope() must return a fragment')
-            if (returns.length > 1) throw new Error('scope() can only have a return statement')
+            if (!returns.length) throw path.buildCodeFrameError('scope() must return a fragment')
+            if (returns.length > 1) throw path.buildCodeFrameError('scope() can only have one return statement')
 
             const returnPath = returns[0]!
             const renderFn = returnPath.get('argument')
-            if (!renderFn.node) throw new Error('scope() setup function must return a render function or JSX')
+            if (!renderFn.node) throw returnPath.buildCodeFrameError('scope() setup function must return a render function or JSX')
 
             // if not a render function, wrap it into `() => (expr)`
             if (renderFn.isFunction()) {
               // maybe assume it's a render function
+              // TODO: check if it's a render function
             }
             else if (renderFn.isJSXElement() || renderFn.isJSXFragment()) {
               // turn it into a render function
@@ -462,7 +469,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
             }
             else {
               // must return a render function or JSX
-              throw new Error('scope() must return a JSX or render function')
+              throw returnPath.buildCodeFrameError('scope() must return a JSX or render function')
             }
 
             return returnPath

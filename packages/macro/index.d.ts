@@ -9,19 +9,21 @@
 type JSXElement = JSX.Element
 type Component<Props> = (props: Props) => JSXElement
 
+type MaybePromise<T> = T | Promise<T>
+
 /**
  * define a new scope component
  */
-export function scopeComponent(name: string, fn: () => JSXElement): Component<{}>
-export function scopeComponent(fn: () => JSXElement): Component<{}>
-export function scopeComponent<Props>(name: string, fn: (props: Props) => JSXElement): Component<Props>
-export function scopeComponent<Props>(fn: (props: Props) => JSXElement): Component<Props>
+export function scopeComponent(name: string, fn: () => MaybePromise<JSXElement>): Component<{}>
+export function scopeComponent(fn: () => MaybePromise<JSXElement>): Component<{}>
+export function scopeComponent<Props>(name: string, fn: (props: Props) => MaybePromise<JSXElement>): Component<Props>
+export function scopeComponent<Props>(fn: (props: Props) => MaybePromise<JSXElement>): Component<Props>
 
 /**
  * define and render a new scope component (use it in JSX)
  */
-export function Scope(name: string, fn: () => JSXElement): JSXElement
-export function Scope(fn: () => JSXElement): JSXElement
+export function Scope(name: string, fn: () => MaybePromise<JSXElement>): JSXElement
+export function Scope(fn: () => MaybePromise<JSXElement>): JSXElement
 
 interface ScopeVar {
   <T>(value: T): T

@@ -35,7 +35,7 @@ export function useNewScopeContext(): ScopeCtx {
   const lastScopeCtx = useRef<ScopeCtx>()
 
   let scope = lastScopeCtx.current
-  if (!scope || scope.$parentScope !== parentScopeCtx) {
+  if (!scope || scope.parent !== parentScopeCtx) {
     scope && disposeScopeCtxReact(scope)
     scope = createScopeContext(parentScopeCtx)
     lastScopeCtx.current = scope

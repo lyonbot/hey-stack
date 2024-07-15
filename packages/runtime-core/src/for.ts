@@ -1,7 +1,7 @@
 import { computed, toRaw } from '@vue/reactivity'
 
 import { ScopeCtx } from './scope.js'
-import { defineScopeVar } from './scopeVar.js'
+import { defineScopeVar, ScopeVar } from './scopeVar.js'
 import { makeCounter } from './utils.js'
 
 /**
@@ -11,7 +11,7 @@ import { makeCounter } from './utils.js'
  */
 export interface ScopeForPropsBase<ComponentType> {
   /** A getter function (can be async) that returns an array, or object */
-  items: () => any
+  items: (() => any) | ScopeVar
 
   /** Optional string, exposed variable name. */
   as?: string | symbol
@@ -50,7 +50,8 @@ export function getScopeForRelates<RFI extends (props: {
   setupScope: (scopeCtx: ScopeCtx, data: { items: any, index: any }) => void
 }) => any>(props: ScopeForPropsBase<any>, renderFrameworkItem: RFI) {
   const $items = computed(() => {
-    const items = props.items()
+    const raw = props.items
+    const items = typeof raw === 'function' ? raw() : raw.value
     if (!items || typeof items !== 'object') return emptyObject
     return items
   })

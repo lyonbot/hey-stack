@@ -33,25 +33,24 @@ const Page = scopeComponent(() => {
         const items = defineScopeVar(_ctx, "items", {
           get: () => globalThis.getItems()
         });
-        const items_1 = () => items.value,
-          itemRender = defineScopeComponent(_ctx2 => {
-            const items = defineScopeVar(_ctx2, "items", {
-              inherited: "items"
-            });
-            let items2 = defineScopeVar(_ctx2, "items2", {
-              inherited: "items2"
-            });
-            let index = defineScopeVar(_ctx2, "index", {
-              inherited: "index"
-            });
-            let item = defineScopeVar(_ctx2, "item", {
-              inherited: "item"
-            });
-            const hash = defineScopeVar(_ctx2, "hash", {
-              get: () => objectHash(item.value),
-              private: true
-            });
-            return () => <section>
+        const itemRender = defineScopeComponent(_ctx2 => {
+          const items = defineScopeVar(_ctx2, "items", {
+            inherited: "items"
+          });
+          let items2 = defineScopeVar(_ctx2, "items2", {
+            inherited: "items2"
+          });
+          let index = defineScopeVar(_ctx2, "index", {
+            inherited: "index"
+          });
+          let item = defineScopeVar(_ctx2, "item", {
+            inherited: "item"
+          });
+          const hash = defineScopeVar(_ctx2, "hash", {
+            get: () => objectHash(item.value),
+            private: true
+          });
+          return () => <section>
                   <div> {index.value} of {items.value.length} </div>
                   <div> {index.value} of {items2.value.length} </div>
 
@@ -59,9 +58,9 @@ const Page = scopeComponent(() => {
                   <div> {item.value.age} </div>
                   <div> {hash.value} </div>
                 </section>;
-          });
+        });
         return () => <div>
-            <ScopeForRenderer items={items_1} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
+            <ScopeForRenderer items={/*@hey-stack/core:rawScopeVarPointer*/items} childComponent={itemRender} as="item" keyAs="index" itemsAs="items2" />
           </div>;
       });"
     `)
@@ -92,28 +91,57 @@ const Page = scopeComponent(() => {
         const items = defineScopeVar(_ctx, "items", {
           get: () => globalThis.getItems()
         });
-        const items_1 = () => items.value,
-          itemRender = defineScopeComponent(_ctx2 => {
-            const items = defineScopeVar(_ctx2, "items", {
-              inherited: "items"
-            });
-            let index = defineScopeVar(_ctx2, "index", {
-              inherited: "index"
-            });
-            let item = defineScopeVar(_ctx2, "item", {
-              inherited: "item"
-            });
-            return () => <section>
+        const itemRender = defineScopeComponent(_ctx2 => {
+          const items = defineScopeVar(_ctx2, "items", {
+            inherited: "items"
+          });
+          let index = defineScopeVar(_ctx2, "index", {
+            inherited: "index"
+          });
+          let item = defineScopeVar(_ctx2, "item", {
+            inherited: "item"
+          });
+          return () => <section>
                 <div> {index.value} of {items.value.length} </div>
                 {/* <div> {index} of {items2.length} </div> */}
                 <div> {item.value.name} </div>
                 <div> {item.value.age} </div>
               </section>;
-          });
+        });
         return () => <div>
-            <ScopeForRenderer items={items_1} childComponent={itemRender} as="item" keyAs="index" />
+            <ScopeForRenderer items={/*@hey-stack/core:rawScopeVarPointer*/items} childComponent={itemRender} as="item" keyAs="index" />
           </div>;
       });"
     `)
+  })
+
+  it('items getter', () => {
+    expect(transpile(`
+import { Scope, scopeComponent, ScopeFor, scopeVar } from "hey-stack-macro";
+
+const Page = scopeComponent(async () => {
+  const sys = scopeVar(await fetchSystemInfo());
+  return (
+    ScopeFor(sys.items, (item, index, items) => (<div>{item.name}</div>))
+  )
+})
+`)).toMatchInlineSnapshot(`
+  {
+    "code": "import { ScopeForRenderer, defineScopeComponent, defineScopeVar } from "hey-stack-runtime";
+  const Page = defineScopeComponent(async _ctx => {
+    const sys = defineScopeVar(_ctx, "sys", {
+      value: await fetchSystemInfo()
+    });
+    const items = () => sys.value.items,
+      itemRender = defineScopeComponent(_ctx2 => {
+        let item = defineScopeVar(_ctx2, "item", {
+          inherited: "item"
+        });
+        return () => <div>{item.value.name}</div>;
+      });
+    return () => <ScopeForRenderer items={items} childComponent={itemRender} as="item" />;
+  });",
+  }
+`)
   })
 })

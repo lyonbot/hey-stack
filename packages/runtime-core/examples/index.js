@@ -3,7 +3,8 @@
 const examples = [
   { id: 'hello', load: () => import('./hello.jsx').then(m => m.App) },
   { id: 'todo', load: () => import('./todo.jsx').then(m => m.App) },
-  { id: 'inherit_test', load: () => import('./inherit_test.jsx').then(m => m.App) },
+  { id: 'inherit-test', load: () => import('./inherit-test.jsx').then(m => m.App) },
+  { id: 'async-list', load: () => import('./async-list.jsx').then(m => m.App) },
 ]
 
 export default examples

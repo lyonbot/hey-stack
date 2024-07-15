@@ -39,7 +39,11 @@ interface ScopeSetupFnState {
     added: Set<string>
   }
 }
-const $scopeSetupFn = Symbol('isScopeSetupFn')
+
+const $scopeSetupFn = Symbol('isScopeSetupFn') // a data of scopeFn function node
+const $scopeVar = Symbol('isScopeVar') // a data of scopeVar declarator node
+
+const C_RAW_SCOPE_VAR_POINTER = '@hey-stack/core:rawScopeVarPointer'
 
 function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: PluginState }> {
   /**
@@ -159,6 +163,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         addOption('private', types.booleanLiteral(true))
       }
 
+      declarator.setData($scopeVar, { setupFnState, name })
       setupFnState.vars[name] = {
         declarator,
         options: types.objectExpression(optionsObjectProperties),
@@ -198,6 +203,24 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
       // turn 2nd argument into another `scope()` declaration
 
+      const setupFnPath = path.findParent(p => p.isFunction() && p.getData($scopeSetupFn)) as NodePath<t.Function>
+      let itemsGetterNeedHoist = false
+      let itemsGetter: t.Expression
+      {
+        const scopeVarData = arg1.isIdentifier() && arg1.scope.getBinding(arg1.node.name)?.path.getData($scopeVar)
+        if (scopeVarData) {
+          // directly use the scopeVar as items
+          itemsGetter = arg1.node
+          itemsGetterNeedHoist = false
+          types.addComment(itemsGetter, 'leading', C_RAW_SCOPE_VAR_POINTER, false)
+        }
+        else {
+          // turn into a getter function
+          itemsGetter = types.arrowFunctionExpression([], arg1.node)
+          itemsGetterNeedHoist = true
+        }
+      }
+
       const childComponentBody
         = types.isExpression(arg2.node.body)
           ? types.blockStatement([types.returnStatement(arg2.node.body)])
@@ -216,7 +239,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         types.jsxAttribute(
           types.jsxIdentifier('items'),
           types.jsxExpressionContainer(
-            types.arrowFunctionExpression([], arg1.node),
+            itemsGetter,
           ),
         ),
         // `childComponent` attribute
@@ -284,16 +307,17 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       jsxPath.visit()
 
       // later, hoist attributes outside of `ScopeFor`
-      const setupFnPath = jsxPath.findParent(p => p.isFunction() && p.getData($scopeSetupFn)) as NodePath<t.Function>
       if (setupFnPath) {
         const setupFn = setupFnPath.getData($scopeSetupFn) as ScopeSetupFnState
         const attributes = jsxPath.get('openingElement').get('attributes') as NodePath<t.JSXAttribute>[]
 
         // mark items getter as hoisted
-        setupFn.toHoist.push({
-          path: (attributes[0].get('value') as NodePath<t.JSXExpressionContainer>).get('expression') as NodePath<t.Expression>,
-          name: 'items',
-        })
+        if (itemsGetterNeedHoist) {
+          setupFn.toHoist.push({
+            path: (attributes[0].get('value') as NodePath<t.JSXExpressionContainer>).get('expression') as NodePath<t.Expression>,
+            name: 'items',
+          })
+        }
 
         // mark childComponent as hoisted
         setupFn.toHoist.push({
@@ -303,6 +327,13 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       }
     },
   } satisfies Record<MacroName, (path: NodePath<t.CallExpression>, state: PluginState) => any>
+
+  // normalFunctionStack
+  let currentRegularFnState = {
+    path: null as unknown as NodePath<t.Function>,
+    hasAwait: [] as NodePath<t.AwaitExpression | t.ForOfStatement>[],
+    prev: null as any,
+  }
 
   return {
     visitor: {
@@ -351,12 +382,33 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         // this function call is a macro
         macroHandler[importSource as MacroName](path, state)
       },
+      AwaitExpression(path) {
+        currentRegularFnState.hasAwait.push(path)
+      },
+      ForAwaitStatement(path) {
+        currentRegularFnState.hasAwait.push(path)
+      },
       Function: {
+        enter(path) {
+          currentRegularFnState = {
+            path,
+            hasAwait: [],
+            prev: currentRegularFnState,
+          }
+        },
         exit(path, globalState) {
+          const regularFnState = currentRegularFnState
+          currentRegularFnState = currentRegularFnState.prev
+
+          // ----------------------------------------------
+
           const state = globalState[$pluginState]
           const setupFn = path.getData($scopeSetupFn) as ScopeSetupFnState
           if (!setupFn || setupFn.processed) return
           setupFn.processed = true
+
+          // check if async
+          setupFn.path.set('async', regularFnState.hasAwait.length > 0) // remove unused `async` marker
 
           // turn `scopeComponent()` into `defineScopeComponent()`
           setupFn.definePath.set('callee', types.identifier(
@@ -441,10 +493,13 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
                   break
                 }
 
-                referencePath.replaceWith(types.memberExpression(
-                  types.identifier(name),
-                  types.identifier('value'),
-                ))
+                const skip = (referencePath.node.leadingComments?.some(x => x.value.includes(C_RAW_SCOPE_VAR_POINTER)))
+                if (!skip) {
+                  referencePath.replaceWith(types.memberExpression(
+                    types.identifier(name),
+                    types.identifier('value'),
+                  ))
+                }
               })
             }
           }

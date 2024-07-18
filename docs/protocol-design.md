@@ -17,7 +17,7 @@ Given such fragment:
     <div> we got {items.length} items </div>
 
     <scope:for items="items" as="item" keyAs="index" itemsAs="array">
-      <scope:var private name="hash" get="objectHash(item)" />
+      <scope:var name="hash" get="objectHash(item)" />
       <section>
         <div> {item.name} </div>
         <div> {item.age} </div>
@@ -56,7 +56,7 @@ const Page = scopeComponent(() => {
             <div> we got {items.length} items </div>
 
             {ScopeFor(items, (item, key, items) => {
-              const hash = scopeVar.computed.private(objectHash(item));
+              const hash = scopeVar.computed(objectHash(item));
               return (
                 <section>
                   <div> {item.name} </div>
@@ -73,11 +73,17 @@ const Page = scopeComponent(() => {
 });
 ```
 
+#### Note of "ref"
+
+By default all scopeVar are deeply reactive, its value is always a Proxy object, which may have performance issues.
+
+You can use `let element = scopeVar.ref()` to make it shallow reactive, which is more performant. And variable value won't become a Proxy object.
+
 #### Note of "computed"
 
 The `foo = scopeVar.computed(expression)` marks the variable as computed, it will auto re-evaluate and re-render related components. You can directly use `foo` to get the value.
 
-You can still use Vue's original `computed` like `foo = computed(() => expression)`, but to take the value, you need to use `foo.value` instead of `foo`, which may be inconvenient.
+You can still use Vue's original `computed` like `foo = computed(() => expression)`, but our macro allows you use `foo` directly instead of `foo.value`, which may be inconvenient.
 
 #### Note of "inherited"
 
@@ -90,7 +96,7 @@ It has optional 2nd parameter `defaultValue`, which will be used if `var_in_oute
 
 - `foo = scopeVar.inherited("var_name_in_outer_scope", { foobar: 123 })`
 
-Writing value to `foo` will affect `var_in_outer_scope` and all other descendant components who inherited it.
+This is a bi-direction binding! Writing value to `foo` will change `var_in_outer_scope` and all other descendant components who inherited it.
 
 #### Note of list rendering
 
@@ -123,7 +129,7 @@ const Page = defineScopeComponent((__scopeCtx) => {
 });
 
 const PageContent = defineScopeComponent((__scopeCtx) => {
-  const items = defineScopeVar(__scopeCtx, 'items', { value: xxxxx });
+  const items = defineScopeVar(__scopeCtx, "items", { value: xxxxx });
   onMount(() => {
     /* do something */
   });
@@ -146,11 +152,10 @@ const PageContent = defineScopeComponent((__scopeCtx) => {
 });
 
 const ChildComponent2 = defineScopeComponent((__scopeCtx) => {
-  const item = defineScopeVar(__scopeCtx, 'item', { 
-    inherited: 'item',
+  const item = defineScopeVar(__scopeCtx, "item", {
+    inherited: "item",
   });
-  const hash = defineScopeVar(__scopeCtx, 'hash', {
-    private: true,
+  const hash = defineScopeVar(__scopeCtx, "hash", {
     get: () => objectHash(item.value),
   });
 
@@ -186,7 +191,7 @@ The structured XML DSL is easy to read and write, and managed by a visual editor
 The pseudo code is totally valid JSX/TSX, and can be used in any IDE tools. All you need is import some functions from "hey-stack-macro" package.
 
 - `scopeComponent` - define a new scope component
-- `scopeVar` - optional, mark variable as computed, private, etc.
+- `scopeVar` - optional, mark variable as `computed`, shallow`ref`, etc.
 - `Scope` - instantly define and render a new scope component (use it in JSX)
 - `ScopeFor` - render a list of items (use it in JSX)
 
@@ -219,7 +224,7 @@ const OriginalPage = scopeComponent(() => {
 const ExtractedComponent1 = scopeComponent(() => {
   // the scopeVar.inherited() tells CodeGen this variable is inherited from outer scope
   const items: Awaited<ReturnType<typeof fetchItems>> = scopeVar.inherited();
-  const itemsHash = scopeVar.computed.private(objectHash(items));
+  const itemsHash = scopeVar.computed(objectHash(items));
 
   return (
     <div>
@@ -235,8 +240,6 @@ Beware that `items` in `ExtractedComponent1` is extracted from outer scope! When
 There is a strategy to handle inherited variables, when extracting:
 
 - If `your_var` is only used by the extracted JSX, we'll **suggest** to move it to new component, or you can still keep it in the original component.
-
-- If `your_var` is **private** and can't be moved, we ask user to choose (1) make it public and optionally `exposeAs` a new name (2) _TBD: pass it as a prop_
 
 ### Runtime DevTool
 

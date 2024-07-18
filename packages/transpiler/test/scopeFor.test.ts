@@ -8,11 +8,11 @@ describe('scopeFor', () => {
 import { Scope, scopeComponent, ScopeFor, scopeVar } from "hey-stack-macro";
 
 const Page = scopeComponent(() => {
-  const items = scopeVar.computed(globalThis.getItems());
+  const items = scopeVar.computed(() => globalThis.getItems());
   return (
     <div>
       {ScopeFor(items, (item, index, items2) => {
-        const hash = scopeVar.computed.private(objectHash(item));
+        const hash = scopeVar.computed(() => objectHash(item));
         return (
           <section>
             <div> {index} of {items.length} </div>
@@ -47,8 +47,7 @@ const Page = scopeComponent(() => {
             inherited: "item"
           });
           const hash = defineScopeVar(_ctx2, "hash", {
-            get: () => objectHash(item.value),
-            private: true
+            get: () => objectHash(item.value)
           });
           return () => <section>
                   <div> {index.value} of {items.value.length} </div>
@@ -71,7 +70,7 @@ const Page = scopeComponent(() => {
 import { Scope, scopeComponent, ScopeFor, scopeVar } from "hey-stack-macro";
 
 const Page = scopeComponent(() => {
-  const items = scopeVar.computed(globalThis.getItems());
+  const items = scopeVar.computed(() => globalThis.getItems());
   return (
     <div>
       {ScopeFor(items, (item, index, items2) => (

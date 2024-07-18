@@ -9,7 +9,7 @@ const Page = scopeComponent(() => {
       <div> welcome! dear {user.name} </div>
       {Scope("local stuff", () => {
         const items = scopeVar(xxxxx);
-        const someComputed = scopeVar.computed(state.name, (c) => state.setName(c));
+        const someComputed = scopeVar.computed(() => state.name, (c) => state.setName(c));
         onMount(() => {
           /* do something */
         });
@@ -19,7 +19,7 @@ const Page = scopeComponent(() => {
             <div> we got {items.length} items </div>
 
             {ScopeFor(items, (item, key, items) => {
-              const hash = scopeVar.computed.private(objectHash(item));
+              const hash = scopeVar.computed(() => objectHash(item));
               return (
                 <section>
                   <div> {item.name} </div>

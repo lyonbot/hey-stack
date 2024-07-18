@@ -27,10 +27,12 @@ export function Scope(fn: () => MaybePromise<JSXElement>): JSXElement
 
 interface ScopeVar {
   <T>(value: T): T
-  private: ScopeVar
+
+  /** create a shallow reactive variable. its value will not become a Proxy object */
+  ref: <T>(value: T) => T
 
   /** a computed variable, optionally with setter */
-  computed<T>(value: T, setter?: (value: T) => void): T
+  computed<T>(value: () => T, setter?: (value: T) => void): T
 
   /**
    * inherit from parent scope.
@@ -63,7 +65,7 @@ interface ScopeVar {
 }
 
 /**
- * mark variable as computed, private, etc.
+ * mark variable as computed, ref, etc.
  */
 export const scopeVar: ScopeVar
 

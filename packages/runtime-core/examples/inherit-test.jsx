@@ -2,7 +2,7 @@ import { defineScopeComponent, defineScopeVar, ScopeForRenderer } from "hey-stac
 
 export const App = defineScopeComponent((ctx) => {
   const foo = defineScopeVar(ctx, "foo", { value: 0 });
-  const bar = defineScopeVar(ctx, "bar", { value: 0, private: true });
+  const bar = defineScopeVar(ctx, "bar", { value: 0 });
   const baz = defineScopeVar(ctx, "baz", { value: 0, exposeAs: "val3" });
 
   return () => (

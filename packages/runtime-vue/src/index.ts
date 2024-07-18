@@ -31,7 +31,6 @@ function useNewScopeContext(ctx: SetupContext): ScopeCtx {
  * @example
  * const Page = defineScopeComponent((__scopeCtx) => {
  *   defineScopeVar(__scopeCtx, "hash", {
- *     private: true,
  *     get: () => objectHash(__scopeCtx.item),
  *   });
  *

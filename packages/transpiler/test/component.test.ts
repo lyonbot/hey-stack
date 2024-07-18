@@ -15,7 +15,7 @@ const Page = scopeComponent(() => {
       <div> welcome! dear {user.name} </div>
       {Scope("local stuff", () => {
         const gifts = scopeVar(user.gifts);
-        const totalPrice = scopeVar.computed(gifts.reduce((acc, item) => acc + item.price, 0));
+        const totalPrice = scopeVar.computed(() => gifts.reduce((acc, item) => acc + item.price, 0));
         return (
           <>
             <div> we got {gifts.length} gifts </div>

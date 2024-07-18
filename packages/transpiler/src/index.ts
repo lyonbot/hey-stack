@@ -87,8 +87,8 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       // no code modified here
 
       // beware that `path.node.callee` can be a MemberExpression.
-      // eg. `scopeVar.computed(x)`
-      //     `scopeVar.computed.private(expr, val => ...)`
+      // eg. `scopeVar.computed(() => xxxx)`
+      //     `scopeVar.computed(() => expr, val => ...)`
       //     `scopeVar.inherited()`
 
       const setupFn = path.getFunctionParent()
@@ -145,8 +145,8 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         if (args.length > 2) throw path.buildCodeFrameError('scopeVar.inherited() accepts up to 2 arguments')
       }
       else if (decorators.computed) {
-        if (!args[0]) throw path.buildCodeFrameError('scopeVar.computed() must have an expression inside')
-        addOption('get', types.arrowFunctionExpression([], args[0]))
+        if (!args[0]) throw path.buildCodeFrameError('scopeVar.computed() must have a getter function')
+        addOption('get', args[0])
 
         if (args.length >= 2) {
           // has setter
@@ -156,11 +156,10 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       else {
         if (!args[0]) throw path.buildCodeFrameError('scopeVar() must have an expression inside')
         addOption('value', args[0])
-      }
 
-      // other common decorators
-      if (decorators.private) {
-        addOption('private', types.booleanLiteral(true))
+        if (decorators.ref) {
+          addOption('ref', types.booleanLiteral(true))
+        }
       }
 
       declarator.setData($scopeVar, { setupFnState, name })

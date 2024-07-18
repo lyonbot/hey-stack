@@ -17,7 +17,7 @@ interface ValueScopeVarOptions<T> extends ScopeVarOptionsBase {
   value?: T
 
   /** If true, use `shallowRef` to store value. */
-  shallow?: boolean
+  ref?: boolean
 }
 
 interface ComputedScopeVarOptions<T> extends ScopeVarOptionsBase {
@@ -150,7 +150,7 @@ export function defineScopeVar<T = any>(
   }
   else {
     // value ref
-    if (options.shallow) ref = shallowRef(options.value)
+    if (options.ref) ref = shallowRef(options.value)
     else ref = createRef(options.value)
   }
 

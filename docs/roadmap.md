@@ -30,7 +30,6 @@ hey-stack' development can be based on other framework:
     ```jsx
     const Page = defineScopeComponent((__scopeCtx) => {
       const hash = defineScopeVar(__scopeCtx, "hash", {
-        private: true,
         get: () => objectHash(__scopeCtx.item),
       });
 

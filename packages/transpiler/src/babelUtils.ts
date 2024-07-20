@@ -124,3 +124,59 @@ export function replaceWithJSXElement(t: typeof types, path: NodePath, tagName: 
 
   return jsxElementPath
 }
+
+/**
+ * Find all identifiers in a pattern
+ *
+ * @example
+ *     [user, { x: x1, y: y2 = 123, ...rest }] = ...  =>  { user: [user], x1: [x1], y2: [y2], rest: [rest] }
+ *     user = ...  =>  { user: [user] }
+ */
+export function getIdentifiersFromPattern(path: NodePath<t.LVal | t.MemberExpression | t.OptionalMemberExpression>) {
+  const output = {} as Record<string, NodePath<t.Identifier>[]>
+
+  const visitQueue = [path] as NodePath[]
+  while (visitQueue.length) {
+    const p = visitQueue.shift()!
+    if (p.isIdentifier()) {
+      const name = p.node.name
+      if (!output[name]) output[name] = []
+      output[name].push(p)
+      continue
+    }
+
+    if (p.isMemberExpression()) {
+      visitQueue.push(p.get('object'))
+      continue
+    }
+
+    if (p.isOptionalMemberExpression()) {
+      visitQueue.push(p.get('object'))
+      continue
+    }
+
+    if (p.isArrayPattern()) {
+      p.get('elements').forEach(element => element.node && visitQueue.push(element as NodePath))
+      continue
+    }
+
+    if (p.isObjectPattern()) {
+      p.get('properties').forEach((property) => {
+        if (property.isObjectProperty()) {
+          visitQueue.push(property.get('value'))
+        }
+        else if (property.isRestElement()) {
+          visitQueue.push(property.get('argument'))
+        }
+      })
+      continue
+    }
+
+    if (p.isAssignmentPattern()) {
+      visitQueue.push(p.get('left'))
+      continue
+    }
+  }
+
+  return output
+}

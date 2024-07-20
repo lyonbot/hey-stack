@@ -1,5 +1,6 @@
 export type { ScopeForPropsBase } from './for.js'
 export { getScopeForRelates, RenderKeyStrategy } from './for.js'
+export * from './reactivity-reexports.js'
 export type { ScopeCtx, ScopeSetupOptionsBase } from './scope.js'
 export { createScopeContext, disposeScopeContext } from './scope.js'
 export type { ScopeVar, ScopeVarDebugInfo, ScopeVarOptions } from './scopeVar.js'

@@ -23,10 +23,24 @@ console.log(count); // Outputs: 1
 By default, all `scopeVar` declarations create deeply reactive variables. The entire object structure becomes reactive.
 
 ```javascript
-let user = scopeVar({ name: "Alice", age: 30 });
+let user = scopeVar({ name: "Alice", age: 30, addresses: [] });
 
 // Later in your code:
 user.age = 31; // This will trigger reactivity
+user.addresses.push("123 Main St"); // trigger reactivity too
+```
+
+Accessing nested objects like `user.addresses` will get a Proxy! Use `toRaw(user.addresses)` to retrieve the original object (without reactivity!)
+
+You can also use `markRaw` to mark objects as non-reactive, and they won't become a Proxy object. ([more info](https://vuejs.org/api/reactivity-advanced.html#markraw))
+
+```js
+let addresses = [{ street: "123 Main St" }]; // Original object
+user.addresses = markRaw(addresses);
+
+// Later in your code:
+user.addresses.push({ street: "456 Elm St" }); // This will NOT trigger reactivity
+assert(user.addresses === addresses); // Identical! won't get a Proxy object
 ```
 
 ### 2. Ref (Shallow Reactive)
@@ -49,14 +63,14 @@ Computed variables automatically update when their dependencies change.
 ```javascript
 let firstName = scopeVar("John");
 let lastName = scopeVar("Doe");
-let fullName = scopeVar.computed(() => `${firstName} ${lastName}`);
+const fullName = scopeVar.computed(() => `${firstName} ${lastName}`);
 
 // Later in your code:
 firstName = "Jane";
 console.log(fullName); // Outputs: "Jane Doe"
 ```
 
-A computed variable also supports setters:
+Optionally, you can give a setter function:
 
 ```javascript
 const price = scopeVar(100);

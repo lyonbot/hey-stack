@@ -4,7 +4,7 @@ import type { PluginObj } from '@babel/core'
 import type { NodePath } from '@babel/traverse'
 import type * as t from '@babel/types'
 
-import { getImportingManager, getReturns, getUidInScope, ImportingManager, replaceWithJSXElement } from './babelUtils'
+import { getIdentifiersFromPattern, getImportingManager, getReturns, getUidInScope, ImportingManager, replaceWithJSXElement } from './babelUtils'
 import { isComponentName, toComponentName } from './utils'
 
 const $pluginState = Symbol('pluginState')
@@ -437,8 +437,8 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
               )
 
               // foo => foo.value
-              scope.getBinding(name)?.referencePaths?.forEach((referencePath) => {
-                let subSetupFnPath: NodePath | null = referencePath
+              function addDotValue(idPath: NodePath<t.Identifier>) {
+                let subSetupFnPath: NodePath | null = idPath
                 let subSetupFn: ScopeSetupFnState | undefined
                 while (
                   (subSetupFnPath = subSetupFnPath.findParent(p => p.isFunction() && (subSetupFn = p.getData($scopeSetupFn))))
@@ -492,13 +492,33 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
                   break
                 }
 
-                const skip = (referencePath.node.leadingComments?.some(x => x.value.includes(C_RAW_SCOPE_VAR_POINTER)))
+                const skip = (idPath.node.leadingComments?.some(x => x.value.includes(C_RAW_SCOPE_VAR_POINTER)))
                 if (!skip) {
-                  referencePath.replaceWith(types.memberExpression(
+                  idPath.replaceWith(types.memberExpression(
                     types.identifier(name),
                     types.identifier('value'),
                   ))
                 }
+              }
+
+              const binding = scope.getBinding(name)!
+              binding.referencePaths?.forEach(p => p.isIdentifier() && addDotValue(p))
+              binding.constantViolations?.forEach((p) => {
+                let identifiers: NodePath<t.Identifier>[] | undefined
+
+                if (p.isAssignmentExpression()) {
+                  identifiers = getIdentifiersFromPattern(p.get('left'))[name]
+                }
+                else if (p.isUpdateExpression()) {
+                  const arg = p.get('argument')
+                  if (arg.isLVal()) identifiers = getIdentifiersFromPattern(arg)[name]
+                }
+                else if (p.isForInStatement() || p.isForOfStatement()) {
+                  const left = p.get('left') as NodePath
+                  if (left.isLVal()) identifiers = getIdentifiersFromPattern(left)[name]
+                }
+
+                if (identifiers) identifiers.forEach(idPath => addDotValue(idPath))
               })
             }
           }

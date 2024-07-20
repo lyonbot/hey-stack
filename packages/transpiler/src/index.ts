@@ -25,6 +25,7 @@ interface ScopeSetupFnState {
   vars: Record<string, {
     declarator: NodePath<t.VariableDeclarator>
     options: t.ObjectExpression
+    isReadonly: string | false // optional, error message
   }>
   ctxParamName: string // name of `scopeCtx` param
   toHoist: {
@@ -122,10 +123,7 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
       const args = path.node.arguments as t.Expression[]
       if (args.some(n => !types.isExpression(n))) throw path.buildCodeFrameError('scopeVar() only accepts expression params, do not use rest spreading')
 
-      const optionsObjectProperties = [] as t.ObjectProperty[]
-      const addOption = (name: string, value: t.Expression) => {
-        optionsObjectProperties.push(types.objectProperty(types.identifier(name), value))
-      }
+      const optionsToGenerate = {} as Record<string, t.Expression>
 
       if (decorators.inherited) {
         let arg0 = args[0]
@@ -135,37 +133,40 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
         if (types.isIdentifier(arg0)) arg0 = types.stringLiteral(arg0.name === 'undefined' ? name : arg0.name)
         if (!types.isStringLiteral(arg0)) throw path.buildCodeFrameError('bad 1st param of scopeVar.inherited(): must be a identifier or have a string literal as argument')
 
-        addOption('inherited', arg0)
+        optionsToGenerate['inherited'] = arg0
 
         if (arg1) {
           // default value
-          addOption('default', types.arrowFunctionExpression([], arg1))
+          optionsToGenerate['default'] = types.arrowFunctionExpression([], arg1)
         }
 
         if (args.length > 2) throw path.buildCodeFrameError('scopeVar.inherited() accepts up to 2 arguments')
       }
       else if (decorators.computed) {
         if (!args[0]) throw path.buildCodeFrameError('scopeVar.computed() must have a getter function')
-        addOption('get', args[0])
+        optionsToGenerate.get = args[0]
 
         if (args.length >= 2) {
           // has setter
-          addOption('set', args[1])
+          optionsToGenerate.set = args[1]
         }
       }
       else {
         if (!args[0]) throw path.buildCodeFrameError('scopeVar() must have an expression inside')
-        addOption('value', args[0])
+        optionsToGenerate.value = args[0]
 
         if (decorators.ref) {
-          addOption('ref', types.booleanLiteral(true))
+          optionsToGenerate.ref = types.booleanLiteral(true)
         }
       }
 
       declarator.setData($scopeVar, { setupFnState, name })
       setupFnState.vars[name] = {
         declarator,
-        options: types.objectExpression(optionsObjectProperties),
+        options: types.objectExpression(Object.entries(optionsToGenerate).map(([name, value]) => types.objectProperty(types.identifier(name), value))),
+        isReadonly:
+          (decorators.computed && !optionsToGenerate.set && 'the computed scopeVar has no setter')
+          || false,
       }
     },
     Scope(path) {
@@ -420,8 +421,9 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
             // eslint-disable-next-line @typescript-eslint/prefer-for-of
             for (let i = 0; i < vars.length; i++) {
-              const [name, { options, declarator }] = vars[i]
+              const [name, { options, declarator, ...otherScopeVarMeta }] = vars[i]
               const scope = declarator.scope
+              const declaration = declarator.parentPath as NodePath<t.VariableDeclaration>
 
               // make `defineScopeVar(ctx, "name", options)` call
               declarator.set(
@@ -503,23 +505,30 @@ function plugin({ types }: { types: typeof t }): PluginObj<{ [$pluginState]: Plu
 
               const binding = scope.getBinding(name)!
               binding.referencePaths?.forEach(p => p.isIdentifier() && addDotValue(p))
-              binding.constantViolations?.forEach((p) => {
-                let identifiers: NodePath<t.Identifier>[] | undefined
 
-                if (p.isAssignmentExpression()) {
-                  identifiers = getIdentifiersFromPattern(p.get('left'))[name]
-                }
-                else if (p.isUpdateExpression()) {
-                  const arg = p.get('argument')
-                  if (arg.isLVal()) identifiers = getIdentifiersFromPattern(arg)[name]
-                }
-                else if (p.isForInStatement() || p.isForOfStatement()) {
-                  const left = p.get('left') as NodePath
-                  if (left.isLVal()) identifiers = getIdentifiersFromPattern(left)[name]
-                }
+              // patch to avoid weird error
+              if (!binding.constant && binding.constantViolations?.length) {
+                if (declaration.node.kind === 'const') declaration.node.kind = 'let'
+                if (otherScopeVarMeta.isReadonly) throw binding.constantViolations[0].buildCodeFrameError(`${otherScopeVarMeta.isReadonly}: ${name}`)
 
-                if (identifiers) identifiers.forEach(idPath => addDotValue(idPath))
-              })
+                binding.constantViolations.forEach((p) => {
+                  let identifiers: NodePath<t.Identifier>[] | undefined
+
+                  if (p.isAssignmentExpression()) {
+                    identifiers = getIdentifiersFromPattern(p.get('left'))[name]
+                  }
+                  else if (p.isUpdateExpression()) {
+                    const arg = p.get('argument')
+                    if (arg.isLVal()) identifiers = getIdentifiersFromPattern(arg)[name]
+                  }
+                  else if (p.isForInStatement() || p.isForOfStatement()) {
+                    const left = p.get('left') as NodePath
+                    if (left.isLVal()) identifiers = getIdentifiersFromPattern(left)[name]
+                  }
+
+                  if (identifiers) identifiers.forEach(idPath => addDotValue(idPath))
+                })
+              }
             }
           }
 
